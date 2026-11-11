@@ -1,10 +1,10 @@
 """Signed release index of the self-hosted Scalio apps (format scalio.selfhosted-index/v1).
 
-Scalio Setup at a customer's site reads index/index.json of this repo, checks index/index.json.sig with the public
-key built into Setup and only then pulls images, by digest. Format: README.md, section «Release-Index».
+Scalio Installer at a customer's site reads index/index.json of this repo, checks index/index.json.sig with the public
+key built into the Installer and only then pulls images, by digest. Format: README.md, section «Release-Index».
 
   python tools/selfhosted_index.py keygen
-      new signing key: prints the seed (secret SELFHOSTED_SIGNING_KEY, 1Password) and the public key (for Setup)
+      new signing key: prints the seed (secret SELFHOSTED_SIGNING_KEY, 1Password) and the public key (for the Installer)
   python tools/selfhosted_index.py add --app citadel --version 0.4.0 --manifest scalio-app.yml \\
       --image backend=ghcr.io/...@sha256:... --image frontend=... [--notes URL] [--index-dir index]
       adds the version (refused if it exists), copies the manifest to index/<app>/<version>.yml, signs
@@ -169,7 +169,7 @@ def main(argv: list[str]) -> int:
             seed = key.private_bytes_raw()
             pub = public_key_b64(key)
             print(f"SELFHOSTED_SIGNING_KEY={base64.b64encode(seed).decode()}")
-            print(f"public key (Scalio Setup): {pub}  kid {key_id(pub)}")
+            print(f"public key (Scalio Installer): {pub}  kid {key_id(pub)}")
             return 0
         if args.cmd == "verify":
             index = verify(args.index_dir, args.public_key)

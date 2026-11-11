@@ -2,30 +2,30 @@
 
 Öffentliches Repo für die Installation der Scalio-Apps auf eigener Infrastruktur (Linux). Hier liegen:
 
-- `get.sh` (folgt): das Installationsscript hinter `https://get.scaliocloud.com`. Es installiert Docker und startet
-  **Scalio Setup**; alles Weitere läuft im Browser.
-- `index/`: der signierte Release-Index. Scalio Setup liest ihn, prüft die Signatur und holt die Images der Apps nur
-  über ihren Digest.
+- `get.sh`: das Installationsscript hinter `https://get.scaliocloud.com`. Es installiert Docker und startet den
+  **Scalio Installer**; alles Weitere läuft im Browser.
+- `index/`: der signierte Release-Index. Der Scalio Installer liest ihn, prüft die Signatur und holt die Images der
+  Apps nur über ihren Digest.
 - `tools/`: Prüfung des App-Manifests und Werkzeug für den Index (Python 3.12+, `pyyaml`, `cryptography`).
-- Releases: `setup-<version>` für Scalio Setup und `<app>-<version>` für jede App, mit Release Notes.
+- Releases: `installer-<version>` für den Scalio Installer und `<app>-<version>` für jede App, mit Release Notes.
 
 Hier liegen keine Geheimnisse, keine Kundendaten und keine internen Adressen.
 
 ## App-Manifest
 
-Jede App legt `selfhosted/scalio-app.yml` (Format `scalio.app/v1`) in ihr Repo und ihr Image. Scalio Setup baut
+Jede App legt `selfhosted/scalio-app.yml` (Format `scalio.app/v1`) in ihr Repo und ihr Image. Der Scalio Installer baut
 daraus `docker-compose.yml` und `.env` der App.
 
 ```yaml
 apiVersion: scalio.app/v1
 app: citadel
 product: Scalio Citadel
-setup: 0.1.0          # kleinste Version von Scalio Setup
+setup: 0.1.0          # kleinste Version des Scalio Installers
 memory_mb: 1536       # RAM inkl. Datenbank
 database: mongo       # ein mongo:7-Container nur für diese App
 public: frontend      # Dienst hinter dem Hostnamen der App (über Caddy)
 port: 80
-secrets:              # erzeugt Setup einmal, stehen auf dem Notfallblatt
+secrets:              # erzeugt der Installer einmal, stehen auf dem Notfallblatt
   - {name: JWT_SECRET, format: hex}   # hex | b64 | fernet, je 32 Byte
 license_env: CITADEL_LICENSE_KEY
 env:                  # für alle Dienste mit «env: common»
@@ -55,7 +55,7 @@ beide dieselben Dienste und Variablen kennen.
 ## Release-Index
 
 `index/index.json` (`scalio.selfhosted-index/v1`) listet pro App die Versionen, neueste zuerst, mit Digest jedes
-Images, der Prüfsumme des Manifests (`index/<app>/<version>.yml`) und der Mindestversion von Setup.
+Images, der Prüfsumme des Manifests (`index/<app>/<version>.yml`) und der Mindestversion des Installers.
 `index/index.json.sig` ist die Ed25519-Signatur über die Bytes von `index.json`. Eine Version wird nie geändert, nur
 zurückgezogen (`withdrawn`).
 
