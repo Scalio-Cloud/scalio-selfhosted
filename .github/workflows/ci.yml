@@ -1,0 +1,30 @@
+name: CI
+
+# Public repo: runs on GitHub-hosted runners (free for public repos). Never on the self-hosted runner, because
+# pull requests from forks would run their code there.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check tools tests
+      - run: pytest -q
+      - name: Index signature (when present)
+        if: hashFiles('index/index.json') != ''
+        env:
+          PUBLIC_KEY: ${{ vars.SELFHOSTED_PUBLIC_KEY }}
+        run: |
+          if [ -z "$PUBLIC_KEY" ]; then echo "::warning::variable SELFHOSTED_PUBLIC_KEY not set"; exit 0; fi
+          python tools/selfhosted_index.py verify --public-key "$PUBLIC_KEY"
