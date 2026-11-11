@@ -1,7 +1,7 @@
 """App manifest `selfhosted/scalio-app.yml` (scalio.app/v1): schema check and comparison with the engine template.
 
-Every Scalio app describes in one file how it runs at a customer's site. Scalio Setup renders docker-compose.yml and
-.env from it, so a new app needs no code in Setup. Format: README.md, section «App-Manifest».
+Every Scalio app describes in one file how it runs at a customer's site. Scalio Installer renders docker-compose.yml and
+.env from it, so a new app needs no code in the Installer. Format: README.md, section «App-Manifest».
 
   python tools/selfhosted_manifest.py check <app-repo>      # schema + compare with backend/tenant_template/docker.json
   python tools/selfhosted_manifest.py validate <file.yml>   # schema only
@@ -29,7 +29,7 @@ TOP_KEYS = {"apiVersion", "app", "product", "setup", "memory_mb", "database", "p
 TOP_REQUIRED = {"apiVersion", "app", "product", "setup", "memory_mb", "database", "public", "port", "services"}
 SERVICE_KEYS = {"image", "command", "env", "environment", "healthcheck", "expose"}
 
-# Variables of the engine template that only make sense in SaaS; Setup never sets them.
+# Variables of the engine template that only make sense in SaaS; the Installer never sets them.
 SAAS_ONLY = {"SAAS_MODE", "SCALIO_STAGE", "SUBDOMAIN", "SCALIO_ID_ISSUER", "JWT_SECRET_PREVIOUS"}
 SAAS_ONLY_PREFIXES = ("SAAS_", "PROVISION_", "ERROR_REPORT_")
 DERIVE_FORMAT = {"derive": "hex", "deriveB64": "b64", "deriveFernet": "fernet"}

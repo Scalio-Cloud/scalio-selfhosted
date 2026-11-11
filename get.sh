@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Scalio Setup installieren: curl -fsSL https://get.scaliocloud.com | sudo bash
+# Scalio Installer installieren: curl -fsSL https://get.scaliocloud.com | sudo bash
 #
 # Prüft das System (Ubuntu 24.04/26.04, Debian 12/13), installiert Docker aus dem offiziellen Docker-Repository,
-# legt /opt/scalio an und startet Caddy und Scalio Setup. Alles Weitere läuft im Browser. Das Script ändert nichts
-# ausser Docker, /opt/scalio und der Firewall (nur wenn ufw aktiv ist: 80 und 443 öffnen). Es legt keinen
+# legt /opt/scalio an und startet Caddy und den Scalio Installer. Alles Weitere läuft im Browser. Das Script ändert
+# nichts ausser Docker, /opt/scalio und der Firewall (nur wenn ufw aktiv ist: 80 und 443 öffnen). Es legt keinen
 # Fernzugang für Scalio an.
 #
 # Variablen (optional): SCALIO_SETUP_IMAGE (Image von Setup), SCALIO_SKIP_DOCKER=1 (Docker nicht installieren),
@@ -57,7 +57,7 @@ say "Ordner ${ROOT} anlegen"
 install -d -m 0700 "$ROOT" "$ROOT/setup" "$ROOT/apps" "$ROOT/caddy" "$ROOT/caddy/sites" "$ROOT/caddy/data"
 if [ ! -f "$ROOT/caddy/Caddyfile" ]; then
   cat > "$ROOT/caddy/Caddyfile" <<'CADDY'
-# Von Scalio Setup verwaltet. Eine Datei pro App in sites/.
+# Vom Scalio Installer verwaltet. Eine Datei pro App in sites/.
 {
 	admin off
 }
@@ -80,7 +80,7 @@ fi
 
 docker network inspect "$NETWORK" >/dev/null 2>&1 || docker network create "$NETWORK" >/dev/null
 
-say "Scalio Setup starten"
+say "Scalio Installer starten"
 docker pull -q "$SETUP_IMAGE" >/dev/null
 docker pull -q "$CADDY_IMAGE" >/dev/null
 docker rm -f scalio-setup scalio-caddy >/dev/null 2>&1 || true
@@ -99,11 +99,11 @@ done
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo
-say "Scalio Setup läuft."
+say "Scalio Installer läuft."
 echo "  Im Browser öffnen:   https://${IP:-<IP dieses Servers>}  (Zertifikatswarnung beim ersten Aufruf bestätigen)"
 if [ -n "$CODE" ]; then
   echo "  Einmal-Code:         $CODE"
 else
   echo "  Einmal-Code:         sudo cat $ROOT/setup/first-code"
 fi
-echo "  Danach führt Sie Setup durch Apps, Adressen, Lizenz und Sicherung."
+echo "  Danach führt Sie der Installer durch Apps, Adressen, Lizenz und Sicherung."
