@@ -30,7 +30,7 @@ TOP_REQUIRED = {"apiVersion", "app", "product", "setup", "memory_mb", "database"
 SERVICE_KEYS = {"image", "command", "env", "environment", "healthcheck", "expose"}
 
 # Variables of the engine template that only make sense in SaaS; Setup never sets them.
-SAAS_ONLY = {"SAAS_MODE", "SCALIO_STAGE", "SUBDOMAIN", "SCALIO_ID_ISSUER"}
+SAAS_ONLY = {"SAAS_MODE", "SCALIO_STAGE", "SUBDOMAIN", "SCALIO_ID_ISSUER", "JWT_SECRET_PREVIOUS"}
 SAAS_ONLY_PREFIXES = ("SAAS_", "PROVISION_", "ERROR_REPORT_")
 DERIVE_FORMAT = {"derive": "hex", "deriveB64": "b64", "deriveFernet": "fernet"}
 
