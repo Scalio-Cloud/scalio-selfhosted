@@ -92,3 +92,42 @@ def test_cli(tmp_path, key, monkeypatch, capsys):
     monkeypatch.setenv("SELFHOSTED_SIGNING_KEY", base64.b64encode(bytes(range(32))).decode())
     assert si.main(args) == 0
     assert si.main(["verify", "--public-key", si.public_key_b64(key), "--index-dir", str(tmp_path)]) == 0
+
+
+LAB = {c: f"ghcr.io/scalio-cloud/scalio-citadel-dev-{c}@{DIGEST}" for c in ("backend", "frontend")}
+
+
+def _set(tmp_path, key, channel="dev", version="dev-1a2b3c4", images=LAB, now="2026-11-12T18:00:00Z"):
+    return si.set_lab(tmp_path, channel, "citadel", version, DATA / "citadel-scalio-app.yml", images, key, now=now)
+
+
+def test_lab_channel_keeps_one_entry_per_app(tmp_path, key):
+    _set(tmp_path, key, version="dev-1a2b3c4")
+    _set(tmp_path, key, version="dev-5d6e7f8", now="2026-11-12T19:00:00Z")
+    index = si.verify(tmp_path, si.public_key_b64(key))
+    assert index["channel"] == "dev"
+    assert [v["version"] for v in index["apps"]["citadel"]] == ["dev-5d6e7f8"]
+    assert index["apps"]["citadel"][0]["released"] == "2026-11-12T19:00:00Z"
+    assert sorted(p.name for p in (tmp_path / "citadel").iterdir()) == ["dev-5d6e7f8.yml"]
+
+
+def test_lab_channel_checks_versions_and_images(tmp_path, key):
+    with pytest.raises(ValueError, match="not a dev build"):
+        _set(tmp_path, key, version="0.4.0")
+    with pytest.raises(ValueError, match="not a rc build"):
+        _set(tmp_path, key, channel="rc", version="dev-1a2b3c4")
+    with pytest.raises(ValueError, match="only dev, rc"):
+        _set(tmp_path, key, channel="public")
+    with pytest.raises(ValueError, match="scalio-citadel-dev-backend"):
+        _set(tmp_path, key, images={**LAB, "backend": IMAGES["backend"]})
+    _set(tmp_path / "rc", key, channel="rc", version="0.3.3rc1")
+    assert si.read(tmp_path / "rc", "rc")["apps"]["citadel"][0]["version"] == "0.3.3rc1"
+
+
+def test_channels_never_mix(tmp_path, key):
+    _set(tmp_path / "dev", key)
+    with pytest.raises(ValueError, match="channel dev, not public"):
+        si.add(tmp_path / "dev", "citadel", "0.4.0", DATA / "citadel-scalio-app.yml", IMAGES, "", key)
+    _add(tmp_path / "pub", key)
+    with pytest.raises(ValueError, match="channel public, not dev"):
+        _set(tmp_path / "pub", key)

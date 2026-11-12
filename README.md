@@ -65,6 +65,19 @@ python tools/selfhosted_index.py verify --public-key <öffentlicher Schlüssel>
 
 Neue Versionen trägt nur der Release-Workflow von Scalio ein.
 
+### Labor-Kanäle
+
+Die Branches `channel-dev` und `channel-rc` enthalten je einen eigenen Index mit `"channel": "dev"` bzw. `"rc"`:
+pro App nur den neusten Dev-Build (`dev-<commit>`) oder Release Candidate, signiert mit einem eigenen
+Staging-Schlüssel. Sie sind nur für die Laborserver von Scalio (die Images sind privat). Ein Installer im Kanal
+`public` nimmt diese Indizes nie an. Start auf einem Laborserver:
+
+```sh
+sudo docker login ghcr.io
+curl -fsSL https://raw.githubusercontent.com/Scalio-Cloud/scalio-selfhosted/main/get.sh -o get.sh
+sudo SCALIO_CHANNEL=dev bash get.sh
+```
+
 ## Entwicklung
 
 ```sh
