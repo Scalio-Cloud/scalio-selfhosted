@@ -1,0 +1,45 @@
+# Ubuntu Server autoinstall of the Scalio ISO (selfhost/H23). Asks only what has no safe default: language and
+# keyboard, network, the administrator account (no default account or password) and SSH. The whole first disk is used.
+# After the first boot, scalio-firstboot installs Docker and Scalio Installer (get.sh from this ISO) and shows the
+# address and the one-time code on the console.
+autoinstall:
+  version: 1
+  interactive-sections:
+    - locale
+    - keyboard
+    - network
+    - identity
+    - ssh
+  locale: de_CH.UTF-8
+  keyboard:
+    layout: ch
+  timezone: Europe/Zurich
+  source:
+    id: ubuntu-server-minimal
+  storage:
+    layout:
+      name: lvm
+      sizing-policy: all
+  ssh:
+    install-server: true
+    allow-pw: false
+  packages:
+    - ufw
+    - fail2ban
+    - unattended-upgrades
+    - curl
+    - ca-certificates
+  updates: security
+  shutdown: reboot
+  late-commands:
+    - install -d -m 0755 /target/opt/scalio-image
+    - install -m 0755 /cdrom/scalio/get.sh /target/opt/scalio-image/get.sh
+    - install -m 0755 /cdrom/scalio/scalio-firstboot.sh /target/opt/scalio-image/scalio-firstboot.sh
+    - install -m 0644 /cdrom/scalio/scalio-firstboot.service /target/etc/systemd/system/scalio-firstboot.service
+    - install -m 0644 /cdrom/scalio/50-scalio-unattended /target/etc/apt/apt.conf.d/52scalio-unattended
+    - curtin in-target -- systemctl enable scalio-firstboot.service
+    - curtin in-target -- ufw default deny incoming
+    - curtin in-target -- ufw allow 22/tcp
+    - curtin in-target -- ufw allow 80/tcp
+    - curtin in-target -- ufw allow 443/tcp
+    - curtin in-target -- ufw --force enable

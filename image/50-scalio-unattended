@@ -1,0 +1,5 @@
+// Scalio ISO (selfhost/H11): security updates every night, restart at 03:30 when an update needs it.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "03:30";
