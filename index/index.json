@@ -3,14 +3,14 @@
     "beacon": [
       {
         "images": {
-          "backend": "ghcr.io/scalio-cloud/scalio-beacon-dev-backend@sha256:14c6a6448f6b094e92ec83b11c901a4dab2bba5fa3416c7944fc258829a27bfe",
-          "frontend": "ghcr.io/scalio-cloud/scalio-beacon-dev-frontend@sha256:8c1c127044290825624e8c09f68167de06855fa9375a6378315d54e16e3afc46"
+          "backend": "ghcr.io/scalio-cloud/scalio-beacon-dev-backend@sha256:7596722d73b7563b1fe8a37d6e650751c1e70f3d00f73e4dfa8f6551be1715d7",
+          "frontend": "ghcr.io/scalio-cloud/scalio-beacon-dev-frontend@sha256:3f1a140332a94cf99236313d221265b2a27d55c95fab32ee90561e31a164e136"
         },
         "manifest_sha256": "a8ebe119ae9f042db7fd456d120bc3da1a7bcbde643f9d8bdafcbd5d75926c69",
         "notes": "",
-        "released": "2026-11-12T22:08:30Z",
+        "released": "2026-11-12T22:18:11Z",
         "setup": "0.1.0",
-        "version": "dev-b52efb2"
+        "version": "dev-9cfd3de"
       }
     ],
     "citadel": [
@@ -82,5 +82,5 @@
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-12T22:08:30Z"
+  "updated": "2026-11-12T22:18:11Z"
 }
