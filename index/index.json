@@ -1,0 +1,21 @@
+{
+  "apps": {
+    "pulse": [
+      {
+        "images": {
+          "backend": "ghcr.io/scalio-cloud/scalio-pulse-dev-backend@sha256:fa608598815fdee46cbfe780798e27f0e256e8cf528a05619e9492326ee5f865",
+          "frontend": "ghcr.io/scalio-cloud/scalio-pulse-dev-frontend@sha256:09c34c208c1bdd26178c023ed0cb79fb7d26a73a05733da478ef376cd017cae7"
+        },
+        "manifest_sha256": "fd68dbb16172029a4240f6c26395ce77aec57eba00c21b70cf46461bf0901683",
+        "notes": "",
+        "released": "2026-11-12T21:38:25Z",
+        "setup": "0.1.0",
+        "version": "0.3.3rc4"
+      }
+    ]
+  },
+  "channel": "rc",
+  "format": "scalio.selfhosted-index/v1",
+  "key": "a877c6eee64e",
+  "updated": "2026-11-12T21:38:25Z"
+}
