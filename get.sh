@@ -7,10 +7,18 @@
 # Fernzugang für Scalio an.
 #
 # Variablen (optional): SCALIO_SETUP_IMAGE (Image von Setup), SCALIO_SKIP_DOCKER=1 (Docker nicht installieren),
-# SCALIO_ROOT (Standard /opt/scalio).
+# SCALIO_ROOT (Standard /opt/scalio), SCALIO_CHANNEL (public, Standard; dev und rc nur für Scalio-Laborserver: neuster
+# Dev-Build oder Release Candidate jeder App, private Images, vorher «docker login ghcr.io»).
 set -euo pipefail
 
-SETUP_IMAGE="${SCALIO_SETUP_IMAGE:-ghcr.io/scalio-cloud/scalio-setup:latest}"
+CHANNEL="${SCALIO_CHANNEL:-public}"
+case "$CHANNEL" in
+  public) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup:latest" ;;
+  dev) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup-dev:latest" ;;
+  rc) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup-dev:rc" ;;
+  *) printf 'Fehler: SCALIO_CHANNEL muss public, dev oder rc sein, nicht %s\n' "$CHANNEL" >&2; exit 1 ;;
+esac
+SETUP_IMAGE="${SCALIO_SETUP_IMAGE:-$DEFAULT_IMAGE}"
 CADDY_IMAGE="caddy:2"
 ROOT="${SCALIO_ROOT:-/opt/scalio}"
 NETWORK="scalio-proxy"
@@ -84,9 +92,18 @@ say "Scalio Installer starten"
 docker pull -q "$SETUP_IMAGE" >/dev/null
 docker pull -q "$CADDY_IMAGE" >/dev/null
 docker rm -f scalio-setup scalio-caddy >/dev/null 2>&1 || true
+LAB_ARGS=()
+if [ "$CHANNEL" != public ]; then
+  say "Kanal ${CHANNEL}: nur für Scalio-Laborserver"
+  if [ -f /root/.docker/config.json ]; then
+    LAB_ARGS=(-v /root/.docker/config.json:/root/.docker/config.json:ro)
+  else
+    say "Hinweis: kein docker login gefunden. Die Images der Apps sind privat: sudo docker login ghcr.io"
+  fi
+fi
 docker run -d --name scalio-setup --restart unless-stopped --network "$NETWORK" \
-  -v /var/run/docker.sock:/var/run/docker.sock -v "$ROOT:$ROOT" -e SCALIO_ROOT="$ROOT" \
-  --security-opt no-new-privileges:true "$SETUP_IMAGE" >/dev/null
+  -v /var/run/docker.sock:/var/run/docker.sock -v "$ROOT:$ROOT" -e SCALIO_ROOT="$ROOT" -e SCALIO_CHANNEL="$CHANNEL" \
+  "${LAB_ARGS[@]}" --security-opt no-new-privileges:true "$SETUP_IMAGE" >/dev/null
 docker run -d --name scalio-caddy --restart unless-stopped --network "$NETWORK" -p 80:80 -p 443:443 \
   -v "$ROOT/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$ROOT/caddy/sites:/etc/caddy/sites:ro" \
   -v "$ROOT/caddy/data:/data" --security-opt no-new-privileges:true "$CADDY_IMAGE" >/dev/null

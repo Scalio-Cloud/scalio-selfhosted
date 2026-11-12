@@ -10,6 +10,10 @@ key built into the Installer and only then pulls images, by digest. Format: READ
       adds the version (refused if it exists), copies the manifest to index/<app>/<version>.yml, signs
       (seed from the environment variable SELFHOSTED_SIGNING_KEY)
   python tools/selfhosted_index.py withdraw --app citadel --version 0.4.0 --reason "…"
+  python tools/selfhosted_index.py set --channel dev --app citadel --version dev-1a2b3c4 --manifest scalio-app.yml \
+      --image backend=ghcr.io/scalio-cloud/scalio-citadel-dev-backend@sha256:... [--index-dir index]
+      lab channels dev / rc only (branches channel-dev / channel-rc, staging key, selfhost/H21): replaces the one
+      entry of the app with the newest dev build or release candidate
   python tools/selfhosted_index.py verify --public-key <base64> [--index-dir index]
 
 The signature covers the exact bytes of index.json; the file is written with sorted keys and a final newline so the
@@ -37,6 +41,9 @@ import selfhosted_manifest  # noqa: E402
 FORMAT = "scalio.selfhosted-index/v1"
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 _DIGEST_REF = re.compile(r"^ghcr\.io/scalio-cloud/selfhosted-scalio[a-z0-9]+-[a-z]+@sha256:[0-9a-f]{64}$")
+# Lab channels: the private build images of the app, newest dev build (dev-<sha>) or release candidate.
+LAB_CHANNELS = {"dev": re.compile(r"^dev-[0-9a-f]{7}$"), "rc": re.compile(r"^\d+\.\d+\.\d+rc\d+$")}
+_LAB_REF = re.compile(r"^ghcr\.io/scalio-cloud/scalio-[a-z0-9]+-dev-[a-z]+@sha256:[0-9a-f]{64}$")
 
 
 def _version_key(v: str) -> tuple[int, ...]:
@@ -62,13 +69,15 @@ def key_id(public_b64: str) -> str:
     return hashlib.sha256(base64.b64decode(public_b64)).hexdigest()[:12]
 
 
-def read(index_dir: Path) -> dict:
+def read(index_dir: Path, channel: str = "public") -> dict:
     path = index_dir / "index.json"
     if not path.is_file():
-        return {"format": FORMAT, "apps": {}}
+        return {"format": FORMAT, "apps": {}} | ({} if channel == "public" else {"channel": channel})
     index = json.loads(path.read_text(encoding="utf-8"))
     if index.get("format") != FORMAT:
         raise ValueError(f"{path}: format must be {FORMAT}")
+    if index.get("channel", "public") != channel:
+        raise ValueError(f"{path} is the index of channel {index.get('channel', 'public')}, not {channel}")
     return index
 
 
@@ -95,10 +104,7 @@ def verify(index_dir: Path, public_b64: str) -> dict:
     return index
 
 
-def add(index_dir: Path, app: str, version: str, manifest_path: Path, images: dict[str, str], notes: str,
-        key: Ed25519PrivateKey, released: str | None = None, now: str | None = None) -> dict:
-    if not _SEMVER.match(version):
-        raise ValueError(f"version {version!r}: only final versions like 0.4.0")
+def _checked_manifest(manifest_path: Path, app: str, images: dict[str, str]) -> dict:
     manifest = selfhosted_manifest.load(manifest_path)
     errors = selfhosted_manifest.validate(manifest)
     if errors:
@@ -108,6 +114,14 @@ def add(index_dir: Path, app: str, version: str, manifest_path: Path, images: di
     wanted = {svc["image"] for svc in manifest["services"].values()}
     if set(images) != wanted:
         raise ValueError(f"images {sorted(images)} do not match the manifest components {sorted(wanted)}")
+    return manifest
+
+
+def add(index_dir: Path, app: str, version: str, manifest_path: Path, images: dict[str, str], notes: str,
+        key: Ed25519PrivateKey, released: str | None = None, now: str | None = None) -> dict:
+    if not _SEMVER.match(version):
+        raise ValueError(f"version {version!r}: only final versions like 0.4.0")
+    manifest = _checked_manifest(manifest_path, app, images)
     for comp, ref in images.items():
         if not _DIGEST_REF.match(ref) or f"selfhosted-scalio{app}-{comp}@" not in ref:
             want = f"ghcr.io/scalio-cloud/selfhosted-scalio{app}-{comp}@sha256:…"
@@ -130,6 +144,39 @@ def add(index_dir: Path, app: str, version: str, manifest_path: Path, images: di
     })
     versions.sort(key=lambda v: _version_key(v["version"]), reverse=True)
     write_signed(index_dir, index, key, now)
+    return index
+
+
+def set_lab(index_dir: Path, channel: str, app: str, version: str, manifest_path: Path, images: dict[str, str],
+            key: Ed25519PrivateKey, now: str | None = None) -> dict:
+    """Lab channel dev or rc: the app's one entry becomes this build (older builds and their manifests go away)."""
+    if channel not in LAB_CHANNELS:
+        raise ValueError(f"channel {channel!r}: only {', '.join(LAB_CHANNELS)} (public versions use add)")
+    if not LAB_CHANNELS[channel].match(version):
+        want = "dev-<7 hex>" if channel == "dev" else "1.2.3rc1"
+        raise ValueError(f"version {version!r} is not a {channel} build ({want})")
+    manifest = _checked_manifest(manifest_path, app, images)
+    for comp, ref in images.items():
+        if not _LAB_REF.match(ref) or f"/scalio-{app}-dev-{comp}@" not in ref:
+            raise ValueError(f"image {comp}: {ref!r} is not ghcr.io/scalio-cloud/scalio-{app}-dev-{comp}@sha256:…")
+    index = read(index_dir, channel)
+    stamp = now or dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    folder = index_dir / app
+    if folder.is_dir():
+        for old in folder.glob("*.yml"):
+            old.unlink()
+    raw = manifest_path.read_bytes()
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{version}.yml").write_bytes(raw)
+    index["apps"][app] = [{
+        "version": version,
+        "released": stamp,
+        "setup": manifest["setup"],
+        "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+        "images": dict(sorted(images.items())),
+        "notes": "",
+    }]
+    write_signed(index_dir, index, key, stamp)
     return index
 
 
@@ -161,7 +208,15 @@ def main(argv: list[str]) -> int:
     w.add_argument("--index-dir", default="index", type=Path)
     v = sub.add_parser("verify")
     v.add_argument("--public-key", required=True)
+    v.add_argument("--channel", default="public", choices=["public", *LAB_CHANNELS])
     v.add_argument("--index-dir", default="index", type=Path)
+    s = sub.add_parser("set")
+    s.add_argument("--channel", required=True, choices=list(LAB_CHANNELS))
+    s.add_argument("--app", required=True)
+    s.add_argument("--version", required=True)
+    s.add_argument("--manifest", required=True, type=Path)
+    s.add_argument("--image", action="append", default=[], help="component=ghcr.io/…@sha256:…")
+    s.add_argument("--index-dir", default="index", type=Path)
     args = ap.parse_args(argv)
     try:
         if args.cmd == "keygen":
@@ -173,17 +228,22 @@ def main(argv: list[str]) -> int:
             return 0
         if args.cmd == "verify":
             index = verify(args.index_dir, args.public_key)
+            if index.get("channel", "public") != args.channel:
+                raise ValueError(f"index is for channel {index.get('channel', 'public')}, not {args.channel}")
             print(f"index ok, {sum(len(v) for v in index['apps'].values())} versions")
             return 0
         seed = os.environ.get("SELFHOSTED_SIGNING_KEY", "")
         if not seed:
             raise ValueError("environment variable SELFHOSTED_SIGNING_KEY is missing")
         key = private_key(seed)
-        if args.cmd == "add":
-            images = {}
-            for item in args.image:
-                comp, _, ref = item.partition("=")
-                images[comp] = ref
+        images = {}
+        for item in getattr(args, "image", []):
+            comp, _, ref = item.partition("=")
+            images[comp] = ref
+        if args.cmd == "set":
+            set_lab(args.index_dir, args.channel, args.app, args.version, args.manifest, images, key)
+            print(f"{args.channel}: {args.app} {args.version}")
+        elif args.cmd == "add":
             add(args.index_dir, args.app, args.version, args.manifest, images, args.notes, key)
             print(f"added {args.app} {args.version}")
         else:
