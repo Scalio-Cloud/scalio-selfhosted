@@ -78,6 +78,19 @@ curl -fsSL https://raw.githubusercontent.com/Scalio-Cloud/scalio-selfhosted/main
 sudo SCALIO_CHANNEL=dev bash get.sh
 ```
 
+## ISO (Ubuntu Server mit Scalio)
+
+`image/` baut ein ISO aus dem offiziellen Ubuntu-Server-ISO (Prüfsumme gegen die signierte `SHA256SUMS` von Ubuntu)
+mit Autoinstall: Es fragt nur Sprache und Tastatur, Netzwerk, das Administrator-Konto und SSH (kein Standardkonto,
+kein Standardpasswort), nimmt die ganze erste Platte, schaltet die Firewall (22, 80, 443) und die automatischen
+Sicherheitsupdates ein. Beim ersten Start läuft `get.sh` vom ISO; danach zeigt die Konsole Adresse und Einmal-Code.
+
+```sh
+image/build-iso.sh            # braucht curl, gpg und xorriso
+```
+
+Workflow «ISO» baut es von Hand oder bei jedem Release `installer-<version>` und legt es 14 Tage als Artefakt ab.
+
 ## Entwicklung
 
 ```sh

@@ -1,0 +1,50 @@
+name: ISO
+
+# Scalio ISO (selfhost/H23): Ubuntu Server with autoinstall, get.sh and the first-boot service. Public repo: runs on
+# GitHub-hosted runners (free). Started by hand or by a release of the Installer (installer-<version>). The ISO is
+# kept as a workflow artifact for 14 days; where customers download it from is decided separately (H23: Cloudflare R2).
+on:
+  workflow_dispatch:
+    inputs:
+      ubuntu:
+        description: "Ubuntu release"
+        default: "26.04"
+  release:
+    types: [published]
+  pull_request:
+    paths: ["image/**", ".github/workflows/iso.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  iso:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'installer-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xorriso >/dev/null
+      - name: Check the files
+        run: |
+          bash -n get.sh image/build-iso.sh image/scalio-firstboot.sh
+          python3 -c "import yaml; d = yaml.safe_load(open('image/autoinstall.yaml'))['autoinstall']; assert 'identity' in d['interactive-sections'] and 'identity' not in d"
+      - name: Build
+        env:
+          UBUNTU_RELEASE: ${{ inputs.ubuntu || '26.04' }}
+        run: image/build-iso.sh "$RUNNER_TEMP/scalio-ubuntu-${UBUNTU_RELEASE}-amd64.iso"
+      - name: Contents
+        env:
+          UBUNTU_RELEASE: ${{ inputs.ubuntu || '26.04' }}
+        run: |
+          ISO="$RUNNER_TEMP/scalio-ubuntu-${UBUNTU_RELEASE}-amd64.iso"
+          xorriso -indev "$ISO" -ls /scalio /autoinstall.yaml 2>/dev/null
+          xorriso -osirrox on -indev "$ISO" -extract /boot/grub/grub.cfg "$RUNNER_TEMP/grub.cfg" 2>/dev/null
+          grep -n "autoinstall" "$RUNNER_TEMP/grub.cfg"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scalio-iso
+          path: ${{ runner.temp }}/scalio-ubuntu-*-amd64.iso*
+          retention-days: 14
+          compression-level: 0
