@@ -90,6 +90,12 @@ image/build-iso.sh            # braucht curl, gpg und xorriso
 ```
 
 Workflow «ISO» baut es von Hand oder bei jedem Release `installer-<version>` und legt es 14 Tage als Artefakt ab.
+Ein Release lädt es ausserdem in den öffentlichen Cloudflare-R2-Bucket `scalio-iso`, nach `<version>/` mit `SHA256SUMS`,
+dazu `latest.txt`; die zwei neusten Versionen bleiben. Prüfen nach dem Download:
+
+```sh
+sha256sum -c SHA256SUMS
+```
 
 ## Entwicklung
 
