@@ -83,7 +83,8 @@ sudo SCALIO_CHANNEL=dev bash get.sh
 `image/` baut ein ISO aus dem offiziellen Ubuntu-Server-ISO (Prüfsumme gegen die signierte `SHA256SUMS` von Ubuntu)
 mit Autoinstall: Es fragt nur Sprache und Tastatur, Netzwerk, das Administrator-Konto und SSH (kein Standardkonto,
 kein Standardpasswort), nimmt die ganze erste Platte, schaltet die Firewall (22, 80, 443) und die automatischen
-Sicherheitsupdates ein. Beim ersten Start läuft `get.sh` vom ISO; danach zeigt die Konsole Adresse und Einmal-Code.
+Sicherheitsupdates ein. SSH: Wird bei der Installation ein Schlüssel importiert (z. B. von GitHub), geht SSH nur noch mit
+Schlüssel, sonst bleibt die Anmeldung mit Passwort offen (fail2ban). Beim ersten Start läuft `get.sh` vom ISO; danach zeigt die Konsole Adresse und Einmal-Code.
 
 ```sh
 image/build-iso.sh            # braucht curl, gpg und xorriso
