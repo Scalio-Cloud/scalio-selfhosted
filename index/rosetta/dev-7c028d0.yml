@@ -1,0 +1,43 @@
+apiVersion: scalio.app/v1
+app: rosetta
+product: Scalio Rosetta
+setup: 0.1.0
+memory_mb: 2048
+database: mongo
+public: frontend
+port: 80
+secrets:
+  - {name: JWT_SECRET, format: hex}
+  - {name: BLOB_MASTER_KEY, format: b64}
+  - {name: WEBHOOK_CRON_SECRET, format: hex}
+license_env: ROSETTA_LICENSE_KEY
+env:
+  MONGO_URL: "{{mongo_url}}"
+  DB_NAME: rosetta
+  JWT_SECRET: "{{secret.JWT_SECRET}}"
+  APP_PUBLIC_URL: "{{public_url}}"
+  SETUP_CODE: "{{setup_code}}"
+  SCALIO_APP_LINKS: "{{app_links}}"
+  FRONTEND_URL: "{{public_url}}"
+  CORS_ORIGINS: "{{public_url}}"
+  BLOB_MASTER_KEY: "{{secret.BLOB_MASTER_KEY}}"
+  WEBHOOK_CRON_SECRET: "{{secret.WEBHOOK_CRON_SECRET}}"
+  STORAGE_ROOT: /data/storage
+  COOKIE_SECURE: "true"
+services:
+  backend:
+    image: backend
+    env: common
+    healthcheck: /api/health
+    expose: 8001
+  worker:
+    image: backend
+    command: [python, -m, worker]
+    env: common
+  frontend:
+    image: frontend
+    environment:
+      BACKEND_URL: http://backend:8001
+volumes:
+  - {service: backend, path: /data/storage}
+  - {service: worker, path: /data/storage}
