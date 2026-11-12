@@ -6,6 +6,12 @@ LOG=/var/log/scalio-firstboot.log
 ISSUE=/etc/issue.d/scalio.issue
 install -d /etc/issue.d
 printf '\nScalio wird eingerichtet … (Protokoll: %s)\n\n' "$LOG" > "$ISSUE"
+# SSH: key only once the administrator has a key (imported in the installer); without one, password sign-in stays on
+# (fail2ban watches it); after adding a key later (ssh-import-id-gh <user>) write the same file by hand.
+if ls /home/*/.ssh/authorized_keys >/dev/null 2>&1; then
+  printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\n' > /etc/ssh/sshd_config.d/10-scalio.conf
+  systemctl reload ssh >/dev/null 2>&1 || true
+fi
 for i in 1 2 3 4 5; do
   if bash /opt/scalio-image/get.sh >>"$LOG" 2>&1; then break; fi
   [ "$i" = 5 ] && { printf '\nScalio: Einrichtung fehlgeschlagen, siehe %s\n\n' "$LOG" > "$ISSUE"; exit 1; }

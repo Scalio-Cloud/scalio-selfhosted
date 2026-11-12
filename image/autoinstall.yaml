@@ -22,7 +22,7 @@ autoinstall:
       sizing-policy: all
   ssh:
     install-server: true
-    allow-pw: false
+    allow-pw: true      # scalio-firstboot switches passwords off once a key is there (no lock-out without a key)
   packages:
     - ufw
     - fail2ban
