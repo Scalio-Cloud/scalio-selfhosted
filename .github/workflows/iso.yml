@@ -2,13 +2,22 @@ name: ISO
 
 # Scalio ISO (selfhost/H23): Ubuntu Server with autoinstall, get.sh and the first-boot service. Public repo: runs on
 # GitHub-hosted runners (free). Started by hand or by a release of the Installer (installer-<version>). The ISO is
-# kept as a workflow artifact for 14 days; where customers download it from is decided separately (H23: Cloudflare R2).
+# kept as a workflow artifact for 14 days. A release (or a manual run with "upload") also puts it into the public
+# Cloudflare R2 bucket scalio-iso (H23), the two newest versions;
+# needs the secrets R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and the variables R2_ACCOUNT_ID, R2_PUBLIC_URL.
 on:
   workflow_dispatch:
     inputs:
       ubuntu:
         description: "Ubuntu release"
         default: "26.04"
+      upload:
+        description: "Upload to Cloudflare R2"
+        type: boolean
+        default: false
+      version:
+        description: "Folder in R2 for a manual upload (e.g. 0.3.0)"
+        default: "manual"
   release:
     types: [published]
   pull_request:
@@ -48,3 +57,39 @@ jobs:
           path: ${{ runner.temp }}/scalio-ubuntu-*-amd64.iso*
           retention-days: 14
           compression-level: 0
+      - name: Upload to Cloudflare R2
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.upload)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          TAG: ${{ github.event.release.tag_name }}
+          MANUAL_VERSION: ${{ inputs.version }}
+          UBUNTU_RELEASE: ${{ inputs.ubuntu || '26.04' }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$R2_ACCOUNT_ID" ]; then
+            echo "::notice::R2 is not set up yet (secrets R2_*), only the artifact is kept"
+            exit 0
+          fi
+          VERSION="${TAG#installer-}"
+          [ -n "$TAG" ] || VERSION="$MANUAL_VERSION"
+          echo "$VERSION" | grep -Eq '^[0-9A-Za-z.+-]{1,40}$' || { echo "bad version $VERSION" >&2; exit 1; }
+          NAME="scalio-installer-$VERSION-ubuntu-$UBUNTU_RELEASE-amd64.iso"
+          SRC="$RUNNER_TEMP/scalio-ubuntu-${UBUNTU_RELEASE}-amd64.iso"
+          S3="aws s3 --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          (cd "$RUNNER_TEMP" && sha256sum "$(basename "$SRC")" | sed "s|  .*|  $NAME|") > "$RUNNER_TEMP/SHA256SUMS"
+          $S3 cp --only-show-errors "$SRC" "s3://scalio-iso/$VERSION/$NAME"
+          $S3 cp --only-show-errors "$RUNNER_TEMP/SHA256SUMS" "s3://scalio-iso/$VERSION/SHA256SUMS"
+          if [ -n "$TAG" ]; then
+            echo "$VERSION" > "$RUNNER_TEMP/latest.txt"
+            $S3 cp --only-show-errors "$RUNNER_TEMP/latest.txt" "s3://scalio-iso/latest.txt"
+            for OLD in $($S3 ls s3://scalio-iso/ | awk '/PRE / {sub("/$", "", $2); print $2}' | grep -E '^[0-9]' | sort -V | head -n -2); do
+              $S3 rm --only-show-errors --recursive "s3://scalio-iso/$OLD/"
+            done
+          fi
+          echo "### ISO ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${R2_PUBLIC_URL%/}/$VERSION/$NAME" >> "$GITHUB_STEP_SUMMARY"
