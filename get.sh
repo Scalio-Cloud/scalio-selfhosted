@@ -63,22 +63,32 @@ fi
 
 say "Ordner ${ROOT} anlegen"
 install -d -m 0700 "$ROOT" "$ROOT/setup" "$ROOT/apps" "$ROOT/caddy" "$ROOT/caddy/sites" "$ROOT/caddy/data"
-if [ ! -f "$ROOT/caddy/Caddyfile" ]; then
-  cat > "$ROOT/caddy/Caddyfile" <<'CADDY'
-# Vom Scalio Installer verwaltet. Eine Datei pro App in sites/.
+# Der Installer selbst: https über die IP-Adressen dieses Servers mit Caddys eigener Zertifizierungsstelle. Ein
+# Browser schickt bei einer IP keinen Servernamen (SNI), deshalb default_sni. Port 80 leitet auf https um (das
+# Anmelde-Cookie gilt nur über https). Die Datei wird bei jedem Lauf neu geschrieben, die Apps liegen in sites/.
+IPS=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+(\.[0-9]+){3}$' || true)
+FIRST_IP=$(printf '%s\n' "$IPS" | head -n 1)
+SITES="https://localhost"
+for a in $IPS; do SITES="$SITES, https://$a"; done
 {
-	admin off
-}
-
-:80, :443 {
-	tls internal
-	reverse_proxy scalio-setup:8080
-}
-
-import sites/*.caddy
-CADDY
-  chmod 600 "$ROOT/caddy/Caddyfile"
-fi
+  echo "# Vom Scalio Installer verwaltet (get.sh schreibt sie bei jedem Lauf neu). Eine Datei pro App in sites/."
+  echo "{"
+  echo "	admin off"
+  [ -n "$FIRST_IP" ] && echo "	default_sni $FIRST_IP"
+  echo "}"
+  echo
+  echo "http://:80 {"
+  echo "	redir https://{host}{uri} 308"
+  echo "}"
+  echo
+  echo "$SITES {"
+  echo "	tls internal"
+  echo "	reverse_proxy scalio-setup:8080"
+  echo "}"
+  echo
+  echo "import sites/*.caddy"
+} > "$ROOT/caddy/Caddyfile"
+chmod 600 "$ROOT/caddy/Caddyfile"
 
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   say "Firewall: 80 und 443 öffnen"
