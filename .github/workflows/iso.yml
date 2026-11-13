@@ -18,6 +18,11 @@ on:
       version:
         description: "Folder in R2 for a manual upload (e.g. 0.3.0)"
         default: "manual"
+      channel:
+        description: "Installer channel on the ISO (public; dev or rc only for Scalio lab servers)"
+        type: choice
+        options: [public, dev, rc]
+        default: public
   release:
     types: [published]
   pull_request:
@@ -37,11 +42,12 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xorriso >/dev/null
       - name: Check the files
         run: |
-          bash -n get.sh image/build-iso.sh image/scalio-firstboot.sh
+          bash -n get.sh image/build-iso.sh image/scalio-firstboot.sh image/scalio-update.sh image/scalio-code.sh image/scalio-motd.sh
           python3 -c "import yaml; d = yaml.safe_load(open('image/autoinstall.yaml'))['autoinstall']; assert 'identity' in d['interactive-sections'] and 'identity' not in d"
       - name: Build
         env:
           UBUNTU_RELEASE: ${{ inputs.ubuntu || '26.04' }}
+          SCALIO_CHANNEL: ${{ inputs.channel || 'public' }}
         run: image/build-iso.sh "$RUNNER_TEMP/scalio-ubuntu-${UBUNTU_RELEASE}-amd64.iso"
       - name: Contents
         env:
@@ -49,6 +55,8 @@ jobs:
         run: |
           ISO="$RUNNER_TEMP/scalio-ubuntu-${UBUNTU_RELEASE}-amd64.iso"
           xorriso -indev "$ISO" -ls /scalio /autoinstall.yaml 2>/dev/null
+          xorriso -osirrox on -indev "$ISO" -extract /scalio/channel "$RUNNER_TEMP/channel" 2>/dev/null
+          echo "channel: $(cat "$RUNNER_TEMP/channel")"
           xorriso -osirrox on -indev "$ISO" -extract /boot/grub/grub.cfg "$RUNNER_TEMP/grub.cfg" 2>/dev/null
           grep -n "autoinstall" "$RUNNER_TEMP/grub.cfg"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

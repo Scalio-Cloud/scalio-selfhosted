@@ -84,7 +84,9 @@ sudo SCALIO_CHANNEL=dev bash get.sh
 mit Autoinstall: Es fragt nur Sprache und Tastatur, Netzwerk, das Administrator-Konto und SSH (kein Standardkonto,
 kein Standardpasswort), nimmt die ganze erste Platte, schaltet die Firewall (22, 80, 443) und die automatischen
 Sicherheitsupdates ein. SSH: Wird bei der Installation ein Schlüssel importiert (z. B. von GitHub), geht SSH nur noch mit
-Schlüssel, sonst bleibt die Anmeldung mit Passwort offen (fail2ban). Beim ersten Start läuft `get.sh` vom ISO; danach zeigt die Konsole Adresse und Einmal-Code.
+Schlüssel, sonst bleibt die Anmeldung mit Passwort offen (fail2ban). Beim ersten Start holt `scalio-update` die neuste `get.sh` (ohne Internet die vom ISO) und führt sie aus; danach zeigen
+die Konsole vor der Anmeldung und jede Anmeldung (Konsole, SSH) Adresse und Einmal-Code. `sudo scalio-code` gibt einen neuen Anmelde-Code (einmal, 30 Minuten), `sudo scalio-update` aktualisiert den Installer später jederzeit (Apps und Daten
+bleiben). Der Kanal steht in `/opt/scalio-image/channel` (Build mit `SCALIO_CHANNEL`, Standard public).
 
 ```sh
 image/build-iso.sh            # braucht curl, gpg und xorriso

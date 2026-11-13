@@ -62,23 +62,35 @@ if [ "${SCALIO_SKIP_DOCKER:-}" != 1 ]; then
 fi
 
 say "Ordner ${ROOT} anlegen"
-install -d -m 0700 "$ROOT" "$ROOT/setup" "$ROOT/apps" "$ROOT/caddy" "$ROOT/caddy/sites" "$ROOT/caddy/data"
-if [ ! -f "$ROOT/caddy/Caddyfile" ]; then
-  cat > "$ROOT/caddy/Caddyfile" <<'CADDY'
-# Vom Scalio Installer verwaltet. Eine Datei pro App in sites/.
+install -d -m 0700 "$ROOT" "$ROOT/setup" "$ROOT/apps" "$ROOT/caddy" "$ROOT/caddy/sites" "$ROOT/caddy/data" "$ROOT/caddy/certs"
+# Der Installer selbst: https über die IP-Adressen dieses Servers mit Caddys eigener Zertifizierungsstelle. Ein
+# Browser schickt bei einer IP keinen Servernamen (SNI), deshalb default_sni. Port 80 leitet auf https um (das
+# Anmelde-Cookie gilt nur über https). Die Admin-API hört nur auf einem Socket im Caddy-Container (der Installer lädt
+# damit neue Apps per docker exec, ohne Verbindungen zu trennen). Die Datei wird bei jedem Lauf neu geschrieben, die
+# Apps liegen in sites/.
+IPS=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+(\.[0-9]+){3}$' || true)
+FIRST_IP=$(printf '%s\n' "$IPS" | head -n 1)
+SITES="https://localhost"
+for a in $IPS; do SITES="$SITES, https://$a"; done
 {
-	admin off
-}
-
-:80, :443 {
-	tls internal
-	reverse_proxy scalio-setup:8080
-}
-
-import sites/*.caddy
-CADDY
-  chmod 600 "$ROOT/caddy/Caddyfile"
-fi
+  echo "# Vom Scalio Installer verwaltet (get.sh schreibt sie bei jedem Lauf neu). Eine Datei pro App in sites/."
+  echo "{"
+  echo "	admin unix//run/caddy-admin.sock"
+  [ -n "$FIRST_IP" ] && echo "	default_sni $FIRST_IP"
+  echo "}"
+  echo
+  echo "http://:80 {"
+  echo "	redir https://{host}{uri} 308"
+  echo "}"
+  echo
+  echo "$SITES {"
+  echo "	tls internal"
+  echo "	reverse_proxy scalio-setup:8080"
+  echo "}"
+  echo
+  echo "import sites/*.caddy"
+} > "$ROOT/caddy/Caddyfile"
+chmod 600 "$ROOT/caddy/Caddyfile"
 
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   say "Firewall: 80 und 443 öffnen"
@@ -102,17 +114,24 @@ if [ "$CHANNEL" != public ]; then
   fi
 fi
 docker run -d --name scalio-setup --restart unless-stopped --network "$NETWORK" \
-  -v /var/run/docker.sock:/var/run/docker.sock -v "$ROOT:$ROOT" -e SCALIO_ROOT="$ROOT" -e SCALIO_CHANNEL="$CHANNEL" \
+  -v /var/run/docker.sock:/var/run/docker.sock -v "$ROOT:$ROOT" -e SCALIO_ROOT="$ROOT" -e SCALIO_CHANNEL="$CHANNEL" -e SCALIO_SERVER_NAME="$(hostname)" \
   "${LAB_ARGS[@]}" --security-opt no-new-privileges:true "$SETUP_IMAGE" >/dev/null
 docker run -d --name scalio-caddy --restart unless-stopped --network "$NETWORK" -p 80:80 -p 443:443 \
   -v "$ROOT/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$ROOT/caddy/sites:/etc/caddy/sites:ro" \
-  -v "$ROOT/caddy/data:/data" --security-opt no-new-privileges:true "$CADDY_IMAGE" >/dev/null
+  -v "$ROOT/caddy/certs:/etc/caddy/certs:ro" -v "$ROOT/caddy/data:/data" --security-opt no-new-privileges:true "$CADDY_IMAGE" >/dev/null
 
 CODE=""
-for _ in $(seq 1 30); do
-  [ -s "$ROOT/setup/first-code" ] && CODE=$(cat "$ROOT/setup/first-code") && break
-  sleep 2
-done
+CODE_CMD="sudo docker exec scalio-setup python -m scalio_setup code"
+if grep -qs '"claimed": *true' "$ROOT/setup/state.json"; then
+  # Schon einmal angemeldet: ein neuer Code (einmal, 30 Minuten), z. B. um weitere Apps zu installieren.
+  sleep 3
+  CODE=$(docker exec scalio-setup python -m scalio_setup code 2>/dev/null | awk '{print $2}' || true)
+else
+  for _ in $(seq 1 30); do
+    [ -s "$ROOT/setup/first-code" ] && CODE=$(cat "$ROOT/setup/first-code") && break
+    sleep 2
+  done
+fi
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo
@@ -121,6 +140,6 @@ echo "  Im Browser öffnen:   https://${IP:-<IP dieses Servers>}  (Zertifikatswa
 if [ -n "$CODE" ]; then
   echo "  Einmal-Code:         $CODE"
 else
-  echo "  Einmal-Code:         sudo cat $ROOT/setup/first-code"
+  echo "  Einmal-Code:         $CODE_CMD"
 fi
 echo "  Danach führt Sie der Installer durch Apps, Adressen, Lizenz und Sicherung."
