@@ -18,6 +18,8 @@ usable() {
 
 if [ "${SCALIO_ACCOUNT_CHECK:-}" = 1 ]; then usable; exit; fi
 install -d -m 0755 /var/lib/scalio
+# cloud-init may still create the account (Proxmox, VMware vApp); wait for it without an ordering cycle in systemd.
+command -v cloud-init >/dev/null 2>&1 && timeout 600 cloud-init status --wait >/dev/null 2>&1
 if usable; then touch "$DONE"; exit 0; fi
 
 printf '\n  Scalio: Einrichtung des Servers\n  ================================\n\n'

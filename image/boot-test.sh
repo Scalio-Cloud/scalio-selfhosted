@@ -62,7 +62,7 @@ SSH=(ssh -q -i "$WORK/key" -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHo
 fail() {
   echo "BOOT TEST FAILED ($DISK, $FW): $*" >&2
   echo "--- console (last 60 lines)" >&2; tail -n 60 "$WORK/console.log" >&2 || true
-  "${SSH[@]}" 'sudo tail -n 60 /var/log/scalio-firstboot.log' >&2 2>/dev/null || true
+  "${SSH[@]}" 'sudo tail -n 60 /var/log/scalio-firstboot.log; systemctl status --no-pager scalio-account scalio-firstboot; sudo journalctl -b --no-pager -u scalio-account | tail -n 30' >&2 2>/dev/null || true
   exit 1
 }
 wait_for() {   # seconds, description, remote command
@@ -77,7 +77,7 @@ wait_for() {   # seconds, description, remote command
 wait_for 600 "SSH" true
 wait_for 300 "cloud-init done" "cloud-init status --wait >/dev/null; test -f /var/lib/cloud/instance/boot-finished"
 "${SSH[@]}" 'SCALIO_ACCOUNT_CHECK=1 /opt/scalio-image/scalio-account.sh' || fail "account check"
-"${SSH[@]}" 'test -f /var/lib/scalio/account-done' || fail "account wizard did not see the cloud-init account"
+wait_for 180 "account wizard saw the cloud-init account" 'test -f /var/lib/scalio/account-done'
 "${SSH[@]}" "sudo awk -F: '\$2 !~ /^[!*]/ && \$2 != \"\" {print \$1}' /etc/shadow" | grep . && fail "account with a password"
 "${SSH[@]}" 'sudo ufw status | grep -q "Status: active"' || fail "ufw not active"
 "${SSH[@]}" 'sudo ufw status | grep -q "443/tcp"' || fail "ufw without 443"
