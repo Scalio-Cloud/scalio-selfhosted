@@ -75,7 +75,12 @@ jobs:
           echo "$VERSION" | grep -Eq '^[0-9A-Za-z.+-]{1,40}$' || { echo "bad version $VERSION" >&2; exit 1; }
           echo "SCALIO_VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Build
-        run: sudo -E image/build-vm.sh "$RUNNER_TEMP/vm" && sudo chown -R "$USER" "$RUNNER_TEMP/vm"
+        # sudo -E does not keep every variable on the runner (the files were named "dev"): pass them by name.
+        run: |
+          sudo env UBUNTU_RELEASE="$UBUNTU_RELEASE" SCALIO_CHANNEL="$SCALIO_CHANNEL" SCALIO_VERSION="$SCALIO_VERSION" \
+            LIBGUESTFS_BACKEND="$LIBGUESTFS_BACKEND" image/build-vm.sh "$RUNNER_TEMP/vm"
+          sudo chown -R "$USER" "$RUNNER_TEMP/vm"
+          ls "$RUNNER_TEMP/vm" | grep -q "^scalio-installer-$SCALIO_VERSION-" || { echo "::error::images not named $SCALIO_VERSION"; exit 1; }
       - name: Registry access for the full boot test
         env:
           TOKEN: ${{ github.token }}
