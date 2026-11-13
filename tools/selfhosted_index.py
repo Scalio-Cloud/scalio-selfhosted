@@ -5,8 +5,12 @@ key built into the Installer and only then pulls images, by digest. Format: READ
 
   python tools/selfhosted_index.py keygen
       new signing key: prints the seed (secret SELFHOSTED_SIGNING_KEY, 1Password) and the public key (for the Installer)
+  python tools/selfhosted_index.py plan --app citadel --version 1.3.0rc2 --channel prerelease --allowed "citadel"
+      checks a release before anything is copied (no key needed) and prints key=value lines for $GITHUB_OUTPUT:
+      channel (stable|prerelease), latest (move the :latest image tag), prerelease (GitHub release as prerelease)
   python tools/selfhosted_index.py add --app citadel --version 0.4.0 --manifest scalio-app.yml \\
-      --image backend=ghcr.io/...@sha256:... --image frontend=... [--notes URL] [--index-dir index]
+      --image backend=ghcr.io/...@sha256:... --image frontend=... [--channel stable|prerelease] [--notes URL]
+      [--index-dir index]
       adds the version (refused if it exists), copies the manifest to index/<app>/<version>.yml, signs
       (seed from the environment variable SELFHOSTED_SIGNING_KEY)
   python tools/selfhosted_index.py withdraw --app citadel --version 0.4.0 --reason "…"
@@ -15,6 +19,12 @@ key built into the Installer and only then pulls images, by digest. Format: READ
       lab channels dev / rc only (branches channel-dev / channel-rc, staging key, selfhost/H21): replaces the one
       entry of the app with the newest dev build or release candidate
   python tools/selfhosted_index.py verify --public-key <base64> [--index-dir index]
+
+Channels (prerelease): `stable` (final versions like 1.3.0, no field in the entry) and
+`prerelease` (Vorabversion: a release candidate like 1.3.0rc2, entry with "channel": "prerelease"; the Installer
+offers it only to apps whose admin switched on «Vorabversionen anzeigen»). Order: 1.3.0rc1 < 1.3.0rc2 < 1.3.0.
+The release of the same version is a new stable entry with the same digests (build once); the prerelease entries
+stay as they are. A version is never changed, only withdrawn.
 
 The signature covers the exact bytes of index.json; the file is written with sorted keys and a final newline so the
 same content always gives the same bytes.
@@ -40,6 +50,12 @@ import selfhosted_manifest  # noqa: E402
 
 FORMAT = "scalio.selfhosted-index/v1"
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
+_RC = re.compile(r"^\d+\.\d+\.\d+rc\d+$")
+_VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:rc(\d+))?$")
+_APP = re.compile(r"^[a-z][a-z0-9]*$")
+STABLE, PRERELEASE = "stable", "prerelease"
+# The workflows say «release» for the stable channel (input channel of app-publish.yml and app-selfhosted.yml).
+_CHANNELS = {"stable": STABLE, "release": STABLE, "prerelease": PRERELEASE}
 _DIGEST_REF = re.compile(r"^ghcr\.io/scalio-cloud/selfhosted-scalio[a-z0-9]+-[a-z]+@sha256:[0-9a-f]{64}$")
 # Lab channels: the private build images of the app, newest dev build (dev-<sha>) or release candidate.
 LAB_CHANNELS = {"dev": re.compile(r"^dev-[0-9a-f]{7}$"), "rc": re.compile(r"^\d+\.\d+\.\d+rc\d+$")}
@@ -47,7 +63,63 @@ _LAB_REF = re.compile(r"^ghcr\.io/scalio-cloud/scalio-[a-z0-9]+-dev-[a-z]+@sha25
 
 
 def _version_key(v: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in v.split("."))
+    """1.3.0rc1 < 1.3.0rc2 < 1.3.0 < 1.3.1rc1 < 1.10.0."""
+    m = _VERSION.match(v)
+    if not m:
+        raise ValueError(f"version {v!r} is not like 1.3.0 or 1.3.0rc2")
+    major, minor, patch, rc = m.groups()
+    return (int(major), int(minor), int(patch)) + ((0, int(rc)) if rc is not None else (1, 0))
+
+
+def channel(name: str) -> str:
+    """Index channel for a channel name of the tool or the workflows; raises ValueError for others."""
+    if name not in _CHANNELS:
+        raise ValueError(f"channel must be stable (release) or prerelease, got {name!r}")
+    return _CHANNELS[name]
+
+
+def channel_of(entry: dict) -> str:
+    """Channel of an index entry; entries without the field are stable."""
+    return entry.get("channel", STABLE)
+
+
+def newest(versions: list[dict], chan: str = STABLE) -> str | None:
+    """Newest version of a channel that is not withdrawn."""
+    live = [v["version"] for v in versions if channel_of(v) == chan and not v.get("withdrawn")]
+    return max(live, key=_version_key, default=None)
+
+
+def check_version(version: str, chan: str) -> None:
+    if chan == STABLE and not _SEMVER.match(version):
+        raise ValueError(f"version {version!r}: only final versions like 0.4.0 (prerelease: --channel prerelease)")
+    if chan == PRERELEASE and not _RC.match(version):
+        raise ValueError(f"version {version!r}: channel prerelease takes only a release candidate like 0.4.0rc2")
+
+
+def _check_prerelease_is_ahead(versions: list[dict], app: str, version: str) -> None:
+    """A Vorabversion must be newer than the newest release: nobody could update to it (no downgrade, ADR 0115)."""
+    best = newest(versions, STABLE)
+    if best and _version_key(version) <= _version_key(best):
+        raise ValueError(f"{app} {version} is not newer than the release {best} in the index, no prerelease")
+
+
+def plan(index: dict, app: str, version: str, chan: str, allowed: set[str]) -> dict[str, str]:
+    """What «Für Kunden freigeben» does for this version and channel; raises ValueError when it must not run."""
+    chan = channel(chan)
+    if not _APP.match(app or ""):
+        raise ValueError(f"app {app!r} is not a plain name")
+    check_version(version, chan)
+    versions = index["apps"].get(app, [])
+    if any(v["version"] == version for v in versions):
+        raise ValueError(f"{app} {version} is already in the index; a version never changes")
+    if chan == PRERELEASE:
+        if app not in allowed:
+            raise ValueError(f"{app} has no 'prerelease: true' in scalio-infra releases/products.yml, no prerelease")
+        _check_prerelease_is_ahead(versions, app, version)
+        return {"channel": PRERELEASE, "latest": "false", "prerelease": "true"}
+    best = newest(versions, STABLE)
+    latest = best is None or _version_key(version) > _version_key(best)
+    return {"channel": STABLE, "latest": "true" if latest else "false", "prerelease": "false"}
 
 
 def dumps(index: dict) -> bytes:
@@ -118,9 +190,9 @@ def _checked_manifest(manifest_path: Path, app: str, images: dict[str, str]) -> 
 
 
 def add(index_dir: Path, app: str, version: str, manifest_path: Path, images: dict[str, str], notes: str,
-        key: Ed25519PrivateKey, released: str | None = None, now: str | None = None) -> dict:
-    if not _SEMVER.match(version):
-        raise ValueError(f"version {version!r}: only final versions like 0.4.0")
+        key: Ed25519PrivateKey, released: str | None = None, now: str | None = None, chan: str = STABLE) -> dict:
+    chan = channel(chan)
+    check_version(version, chan)
     manifest = _checked_manifest(manifest_path, app, images)
     for comp, ref in images.items():
         if not _DIGEST_REF.match(ref) or f"selfhosted-scalio{app}-{comp}@" not in ref:
@@ -130,18 +202,23 @@ def add(index_dir: Path, app: str, version: str, manifest_path: Path, images: di
     versions = index["apps"].setdefault(app, [])
     if any(v["version"] == version for v in versions):
         raise ValueError(f"{app} {version} is already in the index; a version never changes")
+    if chan == PRERELEASE:
+        _check_prerelease_is_ahead(versions, app, version)
     raw = manifest_path.read_bytes()
     target = index_dir / app / f"{version}.yml"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(raw)
-    versions.append({
+    entry = {
         "version": version,
         "released": released or dt.datetime.now(dt.UTC).date().isoformat(),
         "setup": manifest["setup"],
         "manifest_sha256": hashlib.sha256(raw).hexdigest(),
         "images": dict(sorted(images.items())),
         "notes": notes,
-    })
+    }
+    if chan == PRERELEASE:
+        entry["channel"] = PRERELEASE
+    versions.append(entry)
     versions.sort(key=lambda v: _version_key(v["version"]), reverse=True)
     write_signed(index_dir, index, key, now)
     return index
@@ -180,12 +257,19 @@ def set_lab(index_dir: Path, channel: str, app: str, version: str, manifest_path
     return index
 
 
-def withdraw(index_dir: Path, app: str, version: str, reason: str, key: Ed25519PrivateKey) -> dict:
+def withdraw(index_dir: Path, app: str, version: str, reason: str, key: Ed25519PrivateKey,
+             now: str | None = None) -> dict:
+    """Marks a version as withdrawn (any channel): the Installer no longer offers it, installed apps stay on it."""
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValueError("a reason is needed to withdraw a version")
     index = read(index_dir)
     for v in index["apps"].get(app, []):
         if v["version"] == version:
+            if v.get("withdrawn"):
+                raise ValueError(f"{app} {version} is already withdrawn: {v['withdrawn']}")
             v["withdrawn"] = reason
-            write_signed(index_dir, index, key)
+            write_signed(index_dir, index, key, now)
             return index
     raise ValueError(f"{app} {version} is not in the index")
 
@@ -194,12 +278,19 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("keygen")
+    p = sub.add_parser("plan")
+    p.add_argument("--app", required=True)
+    p.add_argument("--version", required=True)
+    p.add_argument("--channel", default=STABLE)
+    p.add_argument("--allowed", default="", help="apps that may publish a prerelease, separated by spaces")
+    p.add_argument("--index-dir", default="index", type=Path)
     a = sub.add_parser("add")
     a.add_argument("--app", required=True)
     a.add_argument("--version", required=True)
     a.add_argument("--manifest", required=True, type=Path)
     a.add_argument("--image", action="append", default=[], help="component=ghcr.io/…@sha256:…")
     a.add_argument("--notes", default="")
+    a.add_argument("--channel", default=STABLE)
     a.add_argument("--index-dir", default="index", type=Path)
     w = sub.add_parser("withdraw")
     w.add_argument("--app", required=True)
@@ -226,6 +317,12 @@ def main(argv: list[str]) -> int:
             print(f"SELFHOSTED_SIGNING_KEY={base64.b64encode(seed).decode()}")
             print(f"public key (Scalio Installer): {pub}  kid {key_id(pub)}")
             return 0
+        if args.cmd == "plan":
+            result = plan(read(args.index_dir), args.app.strip(), args.version.strip(), args.channel.strip(),
+                          set(args.allowed.split()))
+            for k, val in result.items():
+                print(f"{k}={val}")
+            return 0
         if args.cmd == "verify":
             index = verify(args.index_dir, args.public_key)
             if index.get("channel", "public") != args.channel:
@@ -244,8 +341,8 @@ def main(argv: list[str]) -> int:
             set_lab(args.index_dir, args.channel, args.app, args.version, args.manifest, images, key)
             print(f"{args.channel}: {args.app} {args.version}")
         elif args.cmd == "add":
-            add(args.index_dir, args.app, args.version, args.manifest, images, args.notes, key)
-            print(f"added {args.app} {args.version}")
+            add(args.index_dir, args.app, args.version, args.manifest, images, args.notes, key, chan=args.channel)
+            print(f"added {args.app} {args.version} ({channel(args.channel)})")
         else:
             withdraw(args.index_dir, args.app, args.version, args.reason, key)
             print(f"withdrew {args.app} {args.version}")

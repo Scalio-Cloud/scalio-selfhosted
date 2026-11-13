@@ -59,6 +59,13 @@ Images, der Prüfsumme des Manifests (`index/<app>/<version>.yml`) und der Minde
 `index/index.json.sig` ist die Ed25519-Signatur über die Bytes von `index.json`. Eine Version wird nie geändert, nur
 zurückgezogen (`withdrawn`).
 
+Kanäle: Einträge ohne Feld `channel` sind Releases (`stable`, finale Versionen wie `1.3.0`). Eine **Vorabversion**
+(Release Candidate wie `1.3.0rc2`) trägt `"channel": "prerelease"`; der Scalio Installer bietet sie nur Apps an, deren
+Admin «Vorabversionen anzeigen» eingeschaltet hat. Reihenfolge: `1.3.0rc1` < `1.3.0rc2` < `1.3.0`. Eine Vorabversion
+muss neuer sein als das neueste Release. Wird sie zum Release, kommt ein neuer Eintrag `1.3.0` mit denselben Digests
+dazu; die Vorabversionen bleiben unverändert. Zurückgezogene Versionen (`withdrawn` mit Grund) bietet der Installer
+nicht mehr an; wer sie installiert hat, bleibt darauf bis zum nächsten Update.
+
 ```sh
 python tools/selfhosted_index.py verify --public-key <öffentlicher Schlüssel>
 ```
