@@ -1,0 +1,131 @@
+name: VM images
+
+# Scalio VM images (selfhost/H8): Ubuntu cloud image with get.sh, first-boot service and console account wizard, as
+# VHDX (Hyper-V Gen 2), OVA (VMware, Proxmox, VirtualBox) and qcow2 (Proxmox, KVM). Public repo: GitHub-hosted
+# runners (free). Every build boots the OVA disk (BIOS) and the VHDX (UEFI) in QEMU/KVM before anything is kept.
+# The images are workflow artifacts for 14 days; a release (or a manual run with "upload") also puts them next to the
+# ISO in the public Cloudflare R2 bucket scalio-iso (same secrets and variables as iso.yml).
+on:
+  workflow_dispatch:
+    inputs:
+      ubuntu:
+        description: "Ubuntu release"
+        default: "26.04"
+      upload:
+        description: "Upload to Cloudflare R2"
+        type: boolean
+        default: false
+      version:
+        description: "Folder in R2 for a manual upload (e.g. 0.3.0)"
+        default: "manual"
+      channel:
+        description: "Installer channel in the image (public; dev or rc only for Scalio lab servers)"
+        type: choice
+        options: [public, dev, rc]
+        default: public
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - "image/build-vm.sh"
+      - "image/boot-test.sh"
+      - "image/scalio.ovf.in"
+      - "image/scalio-account.*"
+      - "image/scalio-firstboot.*"
+      - ".github/workflows/vm.yml"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  vm:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'installer-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      UBUNTU_RELEASE: ${{ inputs.ubuntu || '26.04' }}
+      SCALIO_CHANNEL: ${{ inputs.channel || 'public' }}
+      LIBGUESTFS_BACKEND: direct
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Disk space and KVM
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+          df -h /
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-utils qemu-system-x86 libguestfs-tools passt cloud-image-utils ovmf zip >/dev/null
+          virt-customize --version
+          sudo chmod 0644 /boot/vmlinuz-*
+      - name: Check the files
+        run: |
+          bash -n get.sh image/build-vm.sh image/boot-test.sh image/scalio-account.sh image/scalio-firstboot.sh
+          python3 -c "import xml.dom.minidom as m; m.parse('image/scalio.ovf.in')"
+      - name: Version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: |
+          VERSION="${TAG#installer-}"
+          [ -n "$TAG" ] || VERSION="${MANUAL_VERSION:-dev}"
+          echo "$VERSION" | grep -Eq '^[0-9A-Za-z.+-]{1,40}$' || { echo "bad version $VERSION" >&2; exit 1; }
+          echo "SCALIO_VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Build
+        run: sudo -E image/build-vm.sh "$RUNNER_TEMP/vm" && sudo chown -R "$USER" "$RUNNER_TEMP/vm"
+      - name: Registry access for the full boot test
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          if echo "$TOKEN" | docker login ghcr.io -u x --password-stdin >/dev/null 2>&1 \
+             && docker manifest inspect ghcr.io/scalio-cloud/scalio-setup-dev:latest >/dev/null 2>&1; then
+            echo "FULL_TEST=1" >> "$GITHUB_ENV"
+          else
+            echo "::notice::Installer image not readable from this repo (package access), boot test without starting it"
+          fi
+          docker logout ghcr.io >/dev/null 2>&1 || true
+      - name: Boot test OVA disk (BIOS, as VMware)
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          N="scalio-installer-$SCALIO_VERSION-ubuntu-$UBUNTU_RELEASE-amd64"
+          tar -C "$RUNNER_TEMP" -xf "$RUNNER_TEMP/vm/$N.ova" "$N.vmdk"
+          if [ "${FULL_TEST:-}" = 1 ]; then export REGISTRY_TOKEN="$TOKEN"; fi
+          image/boot-test.sh "$RUNNER_TEMP/$N.vmdk" bios
+          rm -f "$RUNNER_TEMP/$N.vmdk"
+      - name: Boot test VHDX (UEFI, as Hyper-V Gen 2)
+        run: |
+          N="scalio-installer-$SCALIO_VERSION-ubuntu-$UBUNTU_RELEASE-amd64"
+          unzip -q -d "$RUNNER_TEMP" "$RUNNER_TEMP/vm/$N.vhdx.zip"
+          image/boot-test.sh "$RUNNER_TEMP/$N.vhdx" uefi
+          rm -f "$RUNNER_TEMP/$N.vhdx"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scalio-vm
+          path: ${{ runner.temp }}/vm/scalio-installer-*
+          retention-days: 14
+          compression-level: 0
+      - name: Upload to Cloudflare R2
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.upload)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$R2_ACCOUNT_ID" ]; then
+            echo "::notice::R2 is not set up yet (secrets R2_*), only the artifact is kept"
+            exit 0
+          fi
+          S3="aws s3 --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          echo "### VM images ${SCALIO_VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          for f in "$RUNNER_TEMP"/vm/scalio-installer-*; do
+            $S3 cp --only-show-errors "$f" "s3://scalio-iso/$SCALIO_VERSION/$(basename "$f")"
+            case "$f" in *.sha256) ;; *) echo "${R2_PUBLIC_URL%/}/$SCALIO_VERSION/$(basename "$f")" >> "$GITHUB_STEP_SUMMARY" ;; esac
+          done

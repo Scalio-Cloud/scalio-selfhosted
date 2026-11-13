@@ -1,0 +1,20 @@
+[Unit]
+Description=Scalio: administrator account on the console (VM image, no default account)
+# cloud-init creates users and passwords in its init and config stages (both before multi-user.target). Never order
+# this after cloud-final: on Ubuntu cloud-final runs after multi-user.target, which waits for this unit (cycle).
+After=systemd-user-sessions.service cloud-init.service cloud-init-network.service cloud-config.service
+Before=getty@tty1.service
+ConditionPathExists=!/var/lib/scalio/account-done
+
+[Service]
+Type=oneshot
+ExecStart=/opt/scalio-image/scalio-account.sh
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

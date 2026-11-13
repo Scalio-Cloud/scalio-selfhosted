@@ -109,6 +109,31 @@ dazu `latest.txt`; die zwei neusten Versionen bleiben. Prüfen nach dem Download
 sha256sum -c SHA256SUMS
 ```
 
+## VM-Images (VHDX, OVA, qcow2)
+
+`image/build-vm.sh` baut aus dem offiziellen Ubuntu-Cloud-Image (Prüfsumme gegen die signierte `SHA256SUMS` von
+cloud-images.ubuntu.com) fertige Platten mit 40 GB (wächst beim ersten Start mit), 2 vCPU und 4 GB RAM in der OVA:
+
+- `…-amd64.vhdx.zip` für Hyper-V: VM der **Generation 2**, Secure-Boot-Vorlage «Microsoft UEFI Certificate Authority».
+- `…-amd64.ova` für VMware (ESXi, Workstation), Proxmox VE (Import einer OVA) und VirtualBox.
+- `…-amd64.qcow2` für Proxmox (`qm importdisk`) und KVM.
+
+Wie beim ISO: kein Standardkonto, kein Standardpasswort, Firewall 22/80/443, fail2ban, automatische Sicherheitsupdates
+(Neustart nur im Wartungsfenster des Installers). Ein Konto kommt entweder über cloud-init (Proxmox «Cloud-Init», VMware
+vApp-Felder «password» / «public-keys») oder beim ersten Start auf der Konsole: Tastatur, Benutzername, Passwort und auf
+Wunsch die SSH-Schlüssel eines GitHub-Kontos. SSH geht nur mit Schlüssel. Danach richtet `scalio-firstboot` den Installer
+ein und die Konsole zeigt Adresse und Einmal-Code.
+
+```sh
+image/build-vm.sh             # braucht curl, gpg, qemu-utils, libguestfs-tools, zip (als root)
+image/boot-test.sh <platte> [bios|uefi]
+```
+
+Workflow «VM images» baut die Platten von Hand, bei jedem Release `installer-<version>` und bei Änderungen in einem PR,
+startet die OVA-Platte (BIOS) und die VHDX (UEFI) in QEMU/KVM und prüft Anmeldung, Firewall, fail2ban, Plattengrösse
+und den ersten Start; die Platten bleiben 14 Tage als Artefakt, ein Release legt sie neben das ISO in `scalio-iso/<version>/`
+(je mit `.sha256`).
+
 ## Entwicklung
 
 ```sh
