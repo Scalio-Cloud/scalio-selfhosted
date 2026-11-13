@@ -26,6 +26,19 @@
         "version": "dev-f53e36d"
       }
     ],
+    "folio": [
+      {
+        "images": {
+          "backend": "ghcr.io/scalio-cloud/scalio-folio-dev-backend@sha256:c2cc0f842f0e1fbd64518e7321721554c92ca06c449ad7af29beaf0884474693",
+          "frontend": "ghcr.io/scalio-cloud/scalio-folio-dev-frontend@sha256:f85bbcdeb395058460910913006ad58bb2e73074c47dd858885b6e9c94759a7f"
+        },
+        "manifest_sha256": "cdeb1f0bb22ed4017f121c2e72b522fbc531d393394319ade81ae2612fa35663",
+        "notes": "",
+        "released": "2026-11-13T09:58:59Z",
+        "setup": "0.1.0",
+        "version": "dev-f65a054"
+      }
+    ],
     "foundry": [
       {
         "images": {
@@ -82,5 +95,5 @@
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-13T09:52:54Z"
+  "updated": "2026-11-13T09:58:59Z"
 }
