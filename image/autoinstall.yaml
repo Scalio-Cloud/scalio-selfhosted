@@ -37,6 +37,7 @@ autoinstall:
     - install -m 0755 /cdrom/scalio/scalio-firstboot.sh /target/opt/scalio-image/scalio-firstboot.sh
     - install -m 0644 /cdrom/scalio/channel /target/opt/scalio-image/channel
     - install -m 0755 /cdrom/scalio/scalio-update.sh /target/usr/local/sbin/scalio-update
+    - install -m 0755 /cdrom/scalio/scalio-code.sh /target/usr/local/sbin/scalio-code
     - install -m 0644 /cdrom/scalio/scalio-firstboot.service /target/etc/systemd/system/scalio-firstboot.service
     - install -m 0644 /cdrom/scalio/50-scalio-unattended /target/etc/apt/apt.conf.d/52scalio-unattended
     - curtin in-target -- systemctl enable scalio-firstboot.service

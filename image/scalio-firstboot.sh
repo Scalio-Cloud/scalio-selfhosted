@@ -24,7 +24,8 @@ IP=$(hostname -I 2>/dev/null | awk '{print $1}')
   printf '\n  Scalio Installer läuft.\n'
   printf '  Im Browser öffnen:  https://%s  (Zertifikatswarnung beim ersten Aufruf bestätigen)\n' "${IP:-<IP>}"
   [ -n "$CODE" ] && printf '  Einmal-Code:        %s\n' "$CODE"
-  printf '  Später aktualisieren: sudo scalio-update\n'
+  printf '  Neuer Anmelde-Code:  sudo scalio-code\n'
+  printf '  Aktualisieren:       sudo scalio-update\n'
   printf '\n'
 } > "$ISSUE"
 systemctl disable scalio-firstboot.service >/dev/null 2>&1 || true
