@@ -13,6 +13,8 @@ if ls /home/*/.ssh/authorized_keys >/dev/null 2>&1; then
   printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\n' > /etc/ssh/sshd_config.d/10-scalio.conf
   systemctl reload ssh >/dev/null 2>&1 || true
 fi
+# cloud-init may still install packages (apt lock) or write files; wait for it (no-op without cloud-init).
+command -v cloud-init >/dev/null 2>&1 && { timeout 900 cloud-init status --wait >/dev/null 2>&1 || true; }
 for i in 1 2 3 4 5; do
   if /usr/local/sbin/scalio-update >>"$LOG" 2>&1; then break; fi
   [ "$i" = 5 ] && { printf '\nScalio: Einrichtung fehlgeschlagen, siehe %s\n\n' "$LOG" > "$ISSUE"; exit 1; }

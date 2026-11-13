@@ -1,10 +1,12 @@
 [Unit]
 Description=Scalio: install Docker and Scalio Installer on the first boot
 Wants=network-online.target
-After=network-online.target cloud-final.service
+# Not after cloud-final: on Ubuntu cloud-final runs after multi-user.target (ordering cycle). Type simple so the boot
+# never waits for get.sh; the script waits for cloud-init itself.
+After=network-online.target
 
 [Service]
-Type=oneshot
+Type=simple
 ExecStart=/opt/scalio-image/scalio-firstboot.sh
 RemainAfterExit=yes
 StandardOutput=journal+console
