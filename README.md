@@ -4,8 +4,8 @@
 
 - `get.sh`: das Installationsscript hinter `https://get.scaliocloud.com`. Es installiert Docker und startet den
   **Scalio Installer**; alles Weitere läuft im Browser.
-- `docs/`: GitHub Pages hinter `get.scaliocloud.com` (CNAME auf `scalio-cloud.github.io`, Pages aus `main` Ordner
-  `/docs`). `index.html` und `get.sh` darin sind Kopien von `get.sh` (nach jeder Änderung: `cp get.sh docs/index.html && cp get.sh docs/get.sh`); `tests/test_site.py` prüft, dass sie gleich sind.
+- `index.html`, `CNAME`, `.nojekyll`: GitHub Pages hinter `get.scaliocloud.com` (Pages aus `main`, Wurzel). `index.html`
+  ist eine Kopie von `get.sh` (nach jeder Änderung `cp get.sh index.html`); `tests/test_site.py` prüft das.
 - `index/`: der signierte Release-Index. Der Scalio Installer liest ihn, prüft die Signatur und holt die Images der
   Apps nur über ihren Digest.
 - `tools/`: Prüfung des App-Manifests und Werkzeug für den Index (Python 3.12+, `pyyaml`, `cryptography`).
