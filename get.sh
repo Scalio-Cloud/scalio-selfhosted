@@ -6,20 +6,21 @@
 # nichts ausser Docker, /opt/scalio und der Firewall (nur wenn ufw aktiv ist: 80 und 443 öffnen). Es legt keinen
 # Fernzugang für Scalio an.
 #
-# Variablen (optional): SCALIO_SETUP_IMAGE (Image von Setup), SCALIO_SKIP_DOCKER=1 (Docker nicht installieren),
-# SCALIO_ROOT (Standard /opt/scalio), SCALIO_CHANNEL (public, Standard; dev und rc nur für Scalio-Laborserver: neuster
+# Variablen (optional): SCALIO_SETUP_IMAGE (Image von Setup), SCALIO_CADDY_IMAGE (Image von Caddy),
+# SCALIO_SKIP_DOCKER=1 (Docker nicht installieren), SCALIO_ROOT (Standard /opt/scalio), SCALIO_CHANNEL (public, Standard; dev und rc nur für Scalio-Laborserver: neuster
 # Dev-Build oder Release Candidate jeder App, private Images, vorher «docker login ghcr.io»).
 set -euo pipefail
 
 CHANNEL="${SCALIO_CHANNEL:-public}"
 case "$CHANNEL" in
-  public) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup:latest" ;;
-  dev) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup-dev:latest" ;;
-  rc) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup-dev:rc" ;;
+  public) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup:latest"; DEFAULT_CADDY="ghcr.io/scalio-cloud/scalio-setup-caddy:latest" ;;
+  dev) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup-dev:latest"; DEFAULT_CADDY="ghcr.io/scalio-cloud/scalio-setup-dev-caddy:latest" ;;
+  rc) DEFAULT_IMAGE="ghcr.io/scalio-cloud/scalio-setup-dev:rc"; DEFAULT_CADDY="ghcr.io/scalio-cloud/scalio-setup-dev-caddy:rc" ;;
   *) printf 'Fehler: SCALIO_CHANNEL muss public, dev oder rc sein, nicht %s\n' "$CHANNEL" >&2; exit 1 ;;
 esac
 SETUP_IMAGE="${SCALIO_SETUP_IMAGE:-$DEFAULT_IMAGE}"
-CADDY_IMAGE="caddy:2"
+# Caddy mit den DNS-Modulen für «Let's Encrypt über DNS»; fehlt es (ältere Version), läuft das normale caddy:2.
+CADDY_IMAGE="${SCALIO_CADDY_IMAGE:-$DEFAULT_CADDY}"
 ROOT="${SCALIO_ROOT:-/opt/scalio}"
 NETWORK="scalio-proxy"
 
@@ -102,7 +103,11 @@ docker network inspect "$NETWORK" >/dev/null 2>&1 || docker network create "$NET
 
 say "Scalio Installer starten"
 docker pull -q "$SETUP_IMAGE" >/dev/null
-docker pull -q "$CADDY_IMAGE" >/dev/null
+if ! docker pull -q "$CADDY_IMAGE" >/dev/null 2>&1; then
+  say "Hinweis: ${CADDY_IMAGE} nicht erreichbar, nehme caddy:2 (ohne Let's Encrypt über DNS)"
+  CADDY_IMAGE="caddy:2"
+  docker pull -q "$CADDY_IMAGE" >/dev/null
+fi
 docker rm -f scalio-setup scalio-caddy >/dev/null 2>&1 || true
 LAB_ARGS=()
 if [ "$CHANNEL" != public ]; then
