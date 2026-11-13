@@ -1,0 +1,131 @@
+{
+  "networks": [
+    {
+      "name": "net_tenant_{{.ID}}",
+      "driver": "bridge",
+      "external": false
+    },
+    {
+      "name": "proxy_network",
+      "driver": "bridge",
+      "external": true
+    }
+  ],
+  "services": [
+    {
+      "name": "saas_tenant_{{.ID}}_mongo",
+      "image": "mongo:7",
+      "restart": "unless-stopped",
+      "networks": [
+        "net_tenant_{{.ID}}"
+      ],
+      "volumes": [
+        {
+          "host_path": "./data/tenants/{{.ID}}/mongo-data",
+          "container_path": "/data/db"
+        }
+      ],
+      "envs": [
+        "MONGO_INITDB_ROOT_USERNAME=admin",
+        "MONGO_INITDB_ROOT_PASSWORD={{.DBPassword}}"
+      ]
+    },
+    {
+      "name": "saas_tenant_{{.ID}}_backend",
+      "image": "ghcr.io/scalio-cloud/scalio-example-backend:{{.AppVersion}}",
+      "restart": "unless-stopped",
+      "networks": [
+        "net_tenant_{{.ID}}"
+      ],
+      "aliases": [
+        "saas-tenant-{{.ID}}-backend"
+      ],
+      "volumes": [
+        {
+          "host_path": "./data/tenants/{{.ID}}/storage",
+          "container_path": "/data/storage",
+          "owner": "10001:10001"
+        }
+      ],
+      "envs": [
+        "MONGO_URL=mongodb://admin:{{.DBPassword}}@saas_tenant_{{.ID}}_mongo:27017/?authSource=admin",
+        "DB_NAME=tenant_{{.Subdomain}}",
+        "JWT_SECRET={{.JWTSecret}}",
+        "JWT_SECRET_PREVIOUS={{.JWTSecretPrevious}}",
+        "BLOB_MASTER_KEY={{deriveB64 .KeySeed `blob-master`}}",
+        "EXAMPLE_ENCRYPTION_KEY={{deriveFernet .KeySeed `example-encryption`}}",
+        "APP_PUBLIC_URL=https://{{.Subdomain}}.{{.BaseDomain}}",
+        "FRONTEND_URL=https://{{.Subdomain}}.{{.BaseDomain}}",
+        "SAAS_MODE=true",
+        "SCALIO_STAGE={{.Config.Stage}}",
+        "SETUP_CODE={{.SetupCode}}",
+        "SCALIO_ID_ISSUER={{.Config.ScalioIdIssuer}}",
+        "EXAMPLE_LICENSE_KEY={{.License}}",
+        "PROVISION_PUBLIC_KEY={{.Config.ProvisionPublicKey}}",
+        "PROVISION_HEALTH_SECRET={{.ProvisionHealthSecret}}",
+        "ERROR_REPORT_URL={{.Config.ErrorReportEnvURL}}",
+        "ERROR_REPORT_TOKEN={{.Config.ErrorReportEnvToken}}",
+        "STORAGE_ROOT=/data/storage",
+        "ALLOW_REGISTRATION=false"
+      ]
+    },
+    {
+      "name": "saas_tenant_{{.ID}}_worker",
+      "image": "ghcr.io/scalio-cloud/scalio-example-backend:{{.AppVersion}}",
+      "restart": "unless-stopped",
+      "networks": [
+        "net_tenant_{{.ID}}"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "worker"
+      ],
+      "memory": "1g",
+      "volumes": [
+        {
+          "host_path": "./data/tenants/{{.ID}}/storage",
+          "container_path": "/data/storage",
+          "owner": "10001:10001"
+        }
+      ],
+      "envs": [
+        "MONGO_URL=mongodb://admin:{{.DBPassword}}@saas_tenant_{{.ID}}_mongo:27017/?authSource=admin",
+        "DB_NAME=tenant_{{.Subdomain}}",
+        "JWT_SECRET={{.JWTSecret}}",
+        "JWT_SECRET_PREVIOUS={{.JWTSecretPrevious}}",
+        "BLOB_MASTER_KEY={{deriveB64 .KeySeed `blob-master`}}",
+        "EXAMPLE_ENCRYPTION_KEY={{deriveFernet .KeySeed `example-encryption`}}",
+        "APP_PUBLIC_URL=https://{{.Subdomain}}.{{.BaseDomain}}",
+        "FRONTEND_URL=https://{{.Subdomain}}.{{.BaseDomain}}",
+        "SAAS_MODE=true",
+        "SCALIO_STAGE={{.Config.Stage}}",
+        "SETUP_CODE={{.SetupCode}}",
+        "SCALIO_ID_ISSUER={{.Config.ScalioIdIssuer}}",
+        "EXAMPLE_LICENSE_KEY={{.License}}",
+        "PROVISION_PUBLIC_KEY={{.Config.ProvisionPublicKey}}",
+        "PROVISION_HEALTH_SECRET={{.ProvisionHealthSecret}}",
+        "ERROR_REPORT_URL={{.Config.ErrorReportEnvURL}}",
+        "ERROR_REPORT_TOKEN={{.Config.ErrorReportEnvToken}}",
+        "STORAGE_ROOT=/data/storage",
+        "ALLOW_REGISTRATION=false"
+      ]
+    },
+    {
+      "name": "saas_tenant_{{.ID}}_frontend",
+      "image": "ghcr.io/scalio-cloud/scalio-example-frontend:{{.AppVersion}}",
+      "restart": "unless-stopped",
+      "networks": [
+        "net_tenant_{{.ID}}",
+        "proxy_network"
+      ],
+      "envs": [
+        "BACKEND_URL=http://saas-tenant-{{.ID}}-backend:8001"
+      ],
+      "labels": {
+        "caddy": "{{.Subdomain}}.{{.BaseDomain}}",
+        "caddy.reverse_proxy": "{{upstreams 80}}"
+      }
+    }
+  ]
+}

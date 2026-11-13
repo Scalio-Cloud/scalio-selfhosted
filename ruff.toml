@@ -4,3 +4,7 @@ target-version = "py312"
 [lint]
 select = ["E", "F", "I", "B", "UP", "S"]
 ignore = ["S101"]
+
+[lint.per-file-ignores]
+# Byte-identical copy of scalio-infra tools/selfhosted_manifest.py; _UniqueKeyLoader is a SafeLoader.
+"tools/selfhosted_manifest.py" = ["E501", "S506"]
