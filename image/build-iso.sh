@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Builds the Scalio ISO (selfhost/H23): the official Ubuntu Server ISO, checked against Ubuntu's signed SHA256SUMS,
 # plus autoinstall.yaml, get.sh and the first-boot service. Needs curl, gpg and xorriso.
-#   image/build-iso.sh [out.iso]        UBUNTU_RELEASE (default 26.04), UBUNTU_ISO_DIR (cache folder, default .iso-cache)
+#   image/build-iso.sh [out.iso]        UBUNTU_RELEASE (default 26.04), UBUNTU_ISO_DIR (cache folder, default .iso-cache),
+#                                       SCALIO_CHANNEL (public, default; dev/rc for Scalio lab servers)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$HERE")"
 RELEASE="${UBUNTU_RELEASE:-26.04}"
+CHANNEL="${SCALIO_CHANNEL:-public}"
+case "$CHANNEL" in public|dev|rc) ;; *) echo "SCALIO_CHANNEL must be public, dev or rc" >&2; exit 1 ;; esac
 CACHE="${UBUNTU_ISO_DIR:-$ROOT/.iso-cache}"
 OUT="${1:-$ROOT/scalio-ubuntu-$RELEASE-amd64.iso}"
 BASE="https://releases.ubuntu.com/$RELEASE"
@@ -30,7 +33,8 @@ fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 install -d "$WORK/scalio"
-install -m 0755 "$ROOT/get.sh" "$HERE/scalio-firstboot.sh" "$WORK/scalio/"
+install -m 0755 "$ROOT/get.sh" "$HERE/scalio-firstboot.sh" "$HERE/scalio-update.sh" "$WORK/scalio/"
+echo "$CHANNEL" > "$WORK/scalio/channel"
 install -m 0644 "$HERE/scalio-firstboot.service" "$HERE/50-scalio-unattended" "$WORK/scalio/"
 xorriso -osirrox on -indev "$ISO" -extract /boot/grub/grub.cfg "$WORK/grub.cfg" 2>/dev/null
 chmod u+w "$WORK/grub.cfg"

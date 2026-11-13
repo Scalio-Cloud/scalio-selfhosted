@@ -65,7 +65,9 @@ say "Ordner ${ROOT} anlegen"
 install -d -m 0700 "$ROOT" "$ROOT/setup" "$ROOT/apps" "$ROOT/caddy" "$ROOT/caddy/sites" "$ROOT/caddy/data"
 # Der Installer selbst: https über die IP-Adressen dieses Servers mit Caddys eigener Zertifizierungsstelle. Ein
 # Browser schickt bei einer IP keinen Servernamen (SNI), deshalb default_sni. Port 80 leitet auf https um (das
-# Anmelde-Cookie gilt nur über https). Die Datei wird bei jedem Lauf neu geschrieben, die Apps liegen in sites/.
+# Anmelde-Cookie gilt nur über https). Die Admin-API hört nur auf einem Socket im Caddy-Container (der Installer lädt
+# damit neue Apps per docker exec, ohne Verbindungen zu trennen). Die Datei wird bei jedem Lauf neu geschrieben, die
+# Apps liegen in sites/.
 IPS=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+(\.[0-9]+){3}$' || true)
 FIRST_IP=$(printf '%s\n' "$IPS" | head -n 1)
 SITES="https://localhost"
@@ -73,7 +75,7 @@ for a in $IPS; do SITES="$SITES, https://$a"; done
 {
   echo "# Vom Scalio Installer verwaltet (get.sh schreibt sie bei jedem Lauf neu). Eine Datei pro App in sites/."
   echo "{"
-  echo "	admin off"
+  echo "	admin unix//run/caddy-admin.sock"
   [ -n "$FIRST_IP" ] && echo "	default_sni $FIRST_IP"
   echo "}"
   echo
