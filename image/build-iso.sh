@@ -33,7 +33,7 @@ fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 install -d "$WORK/scalio"
-install -m 0755 "$ROOT/get.sh" "$HERE/scalio-firstboot.sh" "$HERE/scalio-update.sh" "$HERE/scalio-code.sh" "$WORK/scalio/"
+install -m 0755 "$ROOT/get.sh" "$HERE/scalio-firstboot.sh" "$HERE/scalio-update.sh" "$HERE/scalio-code.sh" "$HERE/scalio-motd.sh" "$WORK/scalio/"
 echo "$CHANNEL" > "$WORK/scalio/channel"
 install -m 0644 "$HERE/scalio-firstboot.service" "$HERE/50-scalio-unattended" "$WORK/scalio/"
 xorriso -osirrox on -indev "$ISO" -extract /boot/grub/grub.cfg "$WORK/grub.cfg" 2>/dev/null
