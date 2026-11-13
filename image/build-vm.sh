@@ -49,7 +49,8 @@ echo "$CHANNEL" > "$WORK/channel"
 DISK="$OUT/$NAME.qcow2"
 cp "$IMG" "$DISK"
 qemu-img resize -q "$DISK" "${DISK_GB}G"
-virt-customize -q -a "$DISK" \
+virt-customize -a "$DISK" \
+  --run-command 'ip -br addr; ip route; true' \
   --run-command 'rm -f /etc/resolv.conf && printf "nameserver 1.1.1.1\nnameserver 9.9.9.9\n" > /etc/resolv.conf' \
   --run-command 'export DEBIAN_FRONTEND=noninteractive && apt-get -q update && apt-get -q -y -o Dpkg::Options::=--force-confnew upgrade && apt-get -q -y -o Dpkg::Options::=--force-confnew install ufw fail2ban unattended-upgrades curl ca-certificates kbd console-setup qemu-guest-agent open-vm-tools ssh-import-id' \
   --mkdir /opt/scalio-image \

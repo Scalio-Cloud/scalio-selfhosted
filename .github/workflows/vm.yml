@@ -58,7 +58,8 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq qemu-utils qemu-system-x86 libguestfs-tools cloud-image-utils ovmf zip >/dev/null
+          sudo apt-get install -y -qq qemu-utils qemu-system-x86 libguestfs-tools passt cloud-image-utils ovmf zip >/dev/null
+          virt-customize --version
           sudo chmod 0644 /boot/vmlinuz-*
       - name: Check the files
         run: |
