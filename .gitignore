@@ -6,3 +6,5 @@ __pycache__/
 .iso-cache/
 *.iso
 *.iso.sha256
+/vm-out/
+/.vm-cache/
