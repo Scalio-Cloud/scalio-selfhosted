@@ -3,11 +3,12 @@
 #
 # Prüft das System (Ubuntu 24.04/26.04, Debian 12/13), installiert Docker aus dem offiziellen Docker-Repository,
 # legt /opt/scalio an und startet Caddy und den Scalio Installer. Alles Weitere läuft im Browser. Das Script ändert
-# nichts ausser Docker, /opt/scalio und der Firewall (nur wenn ufw aktiv ist: 80 und 443 öffnen). Es legt keinen
-# Fernzugang für Scalio an.
+# nichts ausser Docker, /opt/scalio, der Firewall (nur wenn ufw aktiv ist: 80 und 443 öffnen) und den automatischen
+# Sicherheits-Updates (unattended-upgrades, Neustart nur im Wartungsfenster, das der Installer einstellt; selfhost/H11).
+# Es legt keinen Fernzugang für Scalio an.
 #
 # Variablen (optional): SCALIO_SETUP_IMAGE (Image von Setup), SCALIO_CADDY_IMAGE (Image von Caddy),
-# SCALIO_SKIP_DOCKER=1 (Docker nicht installieren), SCALIO_ROOT (Standard /opt/scalio), SCALIO_CHANNEL (public, Standard; dev und rc nur für Scalio-Laborserver: neuster
+# SCALIO_SKIP_DOCKER=1 (Docker nicht installieren), SCALIO_SKIP_UPDATES=1 (keine automatischen Updates), SCALIO_ROOT (Standard /opt/scalio), SCALIO_CHANNEL (public, Standard; dev und rc nur für Scalio-Laborserver: neuster
 # Dev-Build oder Release Candidate jeder App, private Images, vorher «docker login ghcr.io»).
 set -euo pipefail
 
@@ -100,6 +101,78 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
 fi
 
 docker network inspect "$NETWORK" >/dev/null 2>&1 || docker network create "$NETWORK" >/dev/null
+
+# Sicherheits-Updates und Wartungsfenster (selfhost/H11): unattended-upgrades installiert die Updates jede Nacht, startet
+# aber nie selbst neu. scalio-maintenance läuft stündlich, schreibt den Zustand für den Installer
+# ($ROOT/setup/host-status.json) und startet den Server nur neu, wenn ein Update das verlangt und das Fenster aus
+# $ROOT/setup/maintenance.json (Standard Sonntag 03:00) gerade offen ist.
+if [ "${SCALIO_SKIP_UPDATES:-}" != 1 ]; then
+  say "Sicherheits-Updates und Wartungsfenster einrichten"
+  if ! dpkg -s unattended-upgrades >/dev/null 2>&1; then
+    apt-get update -qq && apt-get install -y -qq unattended-upgrades >/dev/null
+  fi
+  cat > /etc/apt/apt.conf.d/52scalio-unattended <<'APT'
+// Scalio (selfhost/H11): security updates every night; the restart happens in the window of scalio-maintenance.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+Unattended-Upgrade::Automatic-Reboot "false";
+APT
+  cat > /usr/local/sbin/scalio-maintenance <<'MAINT'
+#!/usr/bin/env bash
+# Scalio: state of the OS updates for the Installer and the restart in the maintenance window (selfhost/H11).
+set -euo pipefail
+ROOT="${SCALIO_ROOT:-/opt/scalio}"
+CFG="$ROOT/setup/maintenance.json"
+OUT="$ROOT/setup/host-status.json"
+DAY=sun
+HOUR=3
+if [ -f "$CFG" ]; then
+  DAY=$(sed -n 's/.*"reboot_day": *"\([a-z]*\)".*/\1/p' "$CFG" | head -n 1)
+  HOUR=$(sed -n 's/.*"reboot_hour": *\([0-9]*\).*/\1/p' "$CFG" | head -n 1)
+fi
+DAY=${DAY:-sun}
+HOUR=${HOUR:-3}
+NEED=false
+[ -f /var/run/reboot-required ] && NEED=true
+PENDING=$(apt-get -s -o Debug::NoLocking=1 upgrade 2>/dev/null | grep -c '^Inst ' || true)
+SECURITY=$(apt-get -s -o Debug::NoLocking=1 upgrade 2>/dev/null | grep '^Inst ' | grep -ci 'security' || true)
+LAST=$(stat -c %Y /var/lib/apt/periodic/unattended-upgrades-stamp 2>/dev/null || echo 0)
+. /etc/os-release
+OS=$(printf '%s' "${PRETTY_NAME:-unknown}" | tr -d '"\\')
+UP=$(cut -d. -f1 /proc/uptime)
+printf '{"checked": %s, "reboot_required": %s, "pending": %s, "security": %s, "last_unattended": %s, "os": "%s", "kernel": "%s", "uptime_s": %s, "reboot_day": "%s", "reboot_hour": %s}\n' \
+  "$(date +%s)" "$NEED" "${PENDING:-0}" "${SECURITY:-0}" "$LAST" "$OS" "$(uname -r)" "$UP" "$DAY" "$HOUR" > "$OUT.tmp"
+chmod 600 "$OUT.tmp"
+mv "$OUT.tmp" "$OUT"
+[ "$NEED" = true ] || exit 0
+[ "$DAY" = off ] && exit 0
+case "$(date +%u)" in 1) TODAY=mon ;; 2) TODAY=tue ;; 3) TODAY=wed ;; 4) TODAY=thu ;; 5) TODAY=fri ;; 6) TODAY=sat ;; *) TODAY=sun ;; esac
+if { [ "$DAY" = daily ] || [ "$DAY" = "$TODAY" ]; } && [ "$((10#$(date +%H)))" -eq "$((10#$HOUR))" ]; then
+  logger -t scalio-maintenance "Neustart im Wartungsfenster (Update verlangt ihn)"
+  systemctl reboot
+fi
+MAINT
+  chmod 755 /usr/local/sbin/scalio-maintenance
+  cat > /etc/systemd/system/scalio-maintenance.service <<'UNIT'
+[Unit]
+Description=Scalio: OS-Updates und Wartungsfenster
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/scalio-maintenance
+UNIT
+  cat > /etc/systemd/system/scalio-maintenance.timer <<'UNIT'
+[Unit]
+Description=Scalio: Wartungsfenster stündlich prüfen
+[Timer]
+OnCalendar=*-*-* *:05:00
+OnBootSec=5min
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable --now scalio-maintenance.timer >/dev/null 2>&1 || true
+  /usr/local/sbin/scalio-maintenance || true
+fi
 
 say "Scalio Installer starten"
 docker pull -q "$SETUP_IMAGE" >/dev/null
