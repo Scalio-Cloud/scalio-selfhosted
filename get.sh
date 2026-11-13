@@ -119,10 +119,17 @@ docker run -d --name scalio-caddy --restart unless-stopped --network "$NETWORK" 
   -v "$ROOT/caddy/data:/data" --security-opt no-new-privileges:true "$CADDY_IMAGE" >/dev/null
 
 CODE=""
-for _ in $(seq 1 30); do
-  [ -s "$ROOT/setup/first-code" ] && CODE=$(cat "$ROOT/setup/first-code") && break
-  sleep 2
-done
+CODE_CMD="sudo docker exec scalio-setup python -m scalio_setup code"
+if grep -qs '"claimed": *true' "$ROOT/setup/state.json"; then
+  # Schon einmal angemeldet: ein neuer Code (einmal, 30 Minuten), z. B. um weitere Apps zu installieren.
+  sleep 3
+  CODE=$(docker exec scalio-setup python -m scalio_setup code 2>/dev/null | awk '{print $2}' || true)
+else
+  for _ in $(seq 1 30); do
+    [ -s "$ROOT/setup/first-code" ] && CODE=$(cat "$ROOT/setup/first-code") && break
+    sleep 2
+  done
+fi
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo
@@ -131,6 +138,6 @@ echo "  Im Browser öffnen:   https://${IP:-<IP dieses Servers>}  (Zertifikatswa
 if [ -n "$CODE" ]; then
   echo "  Einmal-Code:         $CODE"
 else
-  echo "  Einmal-Code:         sudo cat $ROOT/setup/first-code"
+  echo "  Einmal-Code:         $CODE_CMD"
 fi
 echo "  Danach führt Sie der Installer durch Apps, Adressen, Lizenz und Sicherung."
