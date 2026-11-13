@@ -44,7 +44,10 @@ cloud-localds "$WORK/seed.iso" "$WORK/user-data" "$WORK/meta-data"
 qemu-img create -q -f qcow2 -b "$DISK" -F "$FMT" "$WORK/overlay.qcow2"
 FIRMWARE=()
 if [ "$FW" = uefi ]; then
-  OVMF=$(ls /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/ovmf/OVMF.fd 2>/dev/null | head -n 1)
+  OVMF=""   # not `ls a b c | head`: ls exits 2 for a missing path, and pipefail ends the script there
+  for f in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/ovmf/OVMF.fd; do
+    [ -f "$f" ] && { OVMF=$f; break; }
+  done
   [ -n "$OVMF" ] || { echo "no OVMF firmware" >&2; exit 1; }
   FIRMWARE=(-drive "if=pflash,format=raw,readonly=on,file=$OVMF")
   VARS="$(dirname "$OVMF")/OVMF_VARS_4M.fd"; [ -f "$VARS" ] || VARS="$(dirname "$OVMF")/OVMF_VARS.fd"
