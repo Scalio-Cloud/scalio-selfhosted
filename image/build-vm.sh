@@ -5,10 +5,8 @@
 # (Proxmox, VMware vApp, Azure) still works, otherwise scalio-account asks on the console.
 #   image/build-vm.sh [out-dir]   UBUNTU_RELEASE (26.04), SCALIO_CHANNEL (public; dev/rc for Scalio lab servers),
 #                                 SCALIO_VERSION (name in the files, default dev), DISK_GB (40), VM_CACHE (.vm-cache)
-# The build talks to the Ubuntu mirrors through public DNS (1.1.1.1, 9.9.9.9) inside the libguestfs appliance; the
-# image itself keeps systemd-resolved.
 # Writes <name>.qcow2 (for the boot test and Proxmox), <name>.vhdx.zip (Hyper-V Gen 2), <name>.ova (VMware, Proxmox,
-# VirtualBox) and a .sha256 for each. Needs curl, gpg, qemu-utils, libguestfs-tools, zip.
+# VirtualBox) and a .sha256 for each. Needs curl, gpg, qemu-utils, qemu-system-x86, cloud-image-utils, libguestfs-tools, zip.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$HERE")"
@@ -49,10 +47,42 @@ echo "$CHANNEL" > "$WORK/channel"
 DISK="$OUT/$NAME.qcow2"
 cp "$IMG" "$DISK"
 qemu-img resize -q "$DISK" "${DISK_GB}G"
-virt-customize -a "$DISK" \
-  --run-command 'ip -br addr; ip route; true' \
-  --run-command 'rm -f /etc/resolv.conf && printf "nameserver 1.1.1.1\nnameserver 9.9.9.9\n" > /etc/resolv.conf' \
-  --run-command 'export DEBIAN_FRONTEND=noninteractive && apt-get -q update && apt-get -q -y -o Dpkg::Options::=--force-confnew upgrade && apt-get -q -y -o Dpkg::Options::=--force-confnew install ufw fail2ban unattended-upgrades curl ca-certificates kbd console-setup qemu-guest-agent open-vm-tools ssh-import-id' \
+# Step 1, online: boot the cloud image once in QEMU (user networking, as in boot-test.sh) and let cloud-init install
+# the packages and the updates, then switch itself off. The libguestfs appliance gets no network on every host.
+cat > "$WORK/user-data" <<'CLOUD'
+#cloud-config
+package_update: true
+package_upgrade: true
+packages: [ufw, fail2ban, unattended-upgrades, curl, ca-certificates, kbd, console-setup, qemu-guest-agent, open-vm-tools, ssh-import-id]
+runcmd:
+  - ufw default deny incoming
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - sed -i "s/^ENABLED=.*/ENABLED=yes/" /etc/ufw/ufw.conf
+  - sed -i 's/^XKBLAYOUT=.*/XKBLAYOUT="ch"/' /etc/default/keyboard
+  - systemctl enable fail2ban.service
+  - apt-get clean
+  - rm -rf /var/lib/apt/lists/*
+  - userdel -r ubuntu || true
+  - install -d /var/lib/scalio-build && date -u +%FT%TZ > /var/lib/scalio-build/ok
+power_state:
+  mode: poweroff
+  timeout: 30
+CLOUD
+printf 'instance-id: scalio-build\nlocal-hostname: scalio\n' > "$WORK/meta-data"
+cloud-localds "$WORK/seed.iso" "$WORK/user-data" "$WORK/meta-data"
+ACCEL=(-accel tcg)
+[ -w /dev/kvm ] && ACCEL=(-accel kvm -cpu host)
+timeout 2400 qemu-system-x86_64 "${ACCEL[@]}" -m 2048 -smp 2 -machine q35 -no-reboot \
+  -drive "file=$DISK,format=qcow2,if=virtio" -drive "file=$WORK/seed.iso,format=raw,media=cdrom" \
+  -netdev user,id=n0 -device virtio-net-pci,netdev=n0 -display none -serial "file:$WORK/build-console.log" \
+  || { tail -n 80 "$WORK/build-console.log" >&2; echo "build boot failed or timed out" >&2; exit 1; }
+virt-cat -a "$DISK" /var/lib/scalio-build/ok >/dev/null 2>&1 \
+  || { tail -n 80 "$WORK/build-console.log" >&2; echo "cloud-init did not finish the build" >&2; exit 1; }
+
+# Step 2, offline: the Scalio files and services, then everything that must be new on each VM.
+virt-customize -q --no-network -a "$DISK" \
   --mkdir /opt/scalio-image \
   --upload "$WORK/get.sh:/opt/scalio-image/get.sh" \
   --upload "$WORK/scalio-firstboot.sh:/opt/scalio-image/scalio-firstboot.sh" \
@@ -65,10 +95,8 @@ virt-customize -a "$DISK" \
   --upload "$WORK/scalio-account.service:/etc/systemd/system/scalio-account.service" \
   --upload "$WORK/50-scalio-unattended:/etc/apt/apt.conf.d/52scalio-unattended" \
   --run-command 'chmod 0755 /opt/scalio-image/*.sh /usr/local/sbin/scalio-update /usr/local/sbin/scalio-code /etc/update-motd.d/60-scalio' \
-  --run-command 'systemctl enable scalio-firstboot.service scalio-account.service fail2ban.service' \
-  --run-command 'ufw default deny incoming && ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && sed -i "s/^ENABLED=.*/ENABLED=yes/" /etc/ufw/ufw.conf' \
-  --run-command 'sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"ch\"/" /etc/default/keyboard' \
-  --run-command 'apt-get clean && rm -rf /var/lib/apt/lists/* && cloud-init clean --logs && truncate -s 0 /etc/machine-id && rm -f /var/lib/dbus/machine-id /etc/ssh/ssh_host_* && ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf' \
+  --run-command 'systemctl enable scalio-firstboot.service scalio-account.service' \
+  --run-command 'rm -rf /var/lib/scalio-build && cloud-init clean --logs --seed && truncate -s 0 /etc/machine-id && rm -f /var/lib/dbus/machine-id /etc/ssh/ssh_host_*' \
   --hostname scalio \
   --timezone Europe/Zurich
 virt-sparsify -q --in-place "$DISK"
