@@ -5,6 +5,8 @@
 # (Proxmox, VMware vApp, Azure) still works, otherwise scalio-account asks on the console.
 #   image/build-vm.sh [out-dir]   UBUNTU_RELEASE (26.04), SCALIO_CHANNEL (public; dev/rc for Scalio lab servers),
 #                                 SCALIO_VERSION (name in the files, default dev), DISK_GB (40), VM_CACHE (.vm-cache)
+# The build talks to the Ubuntu mirrors through public DNS (1.1.1.1, 9.9.9.9) inside the libguestfs appliance; the
+# image itself keeps systemd-resolved.
 # Writes <name>.qcow2 (for the boot test and Proxmox), <name>.vhdx.zip (Hyper-V Gen 2), <name>.ova (VMware, Proxmox,
 # VirtualBox) and a .sha256 for each. Needs curl, gpg, qemu-utils, libguestfs-tools, zip.
 set -euo pipefail
@@ -48,8 +50,8 @@ DISK="$OUT/$NAME.qcow2"
 cp "$IMG" "$DISK"
 qemu-img resize -q "$DISK" "${DISK_GB}G"
 virt-customize -q -a "$DISK" \
-  --update \
-  --install ufw,fail2ban,unattended-upgrades,curl,ca-certificates,kbd,console-setup,qemu-guest-agent,open-vm-tools,ssh-import-id \
+  --run-command 'rm -f /etc/resolv.conf && printf "nameserver 1.1.1.1\nnameserver 9.9.9.9\n" > /etc/resolv.conf' \
+  --run-command 'export DEBIAN_FRONTEND=noninteractive && apt-get -q update && apt-get -q -y -o Dpkg::Options::=--force-confnew upgrade && apt-get -q -y -o Dpkg::Options::=--force-confnew install ufw fail2ban unattended-upgrades curl ca-certificates kbd console-setup qemu-guest-agent open-vm-tools ssh-import-id' \
   --mkdir /opt/scalio-image \
   --upload "$WORK/get.sh:/opt/scalio-image/get.sh" \
   --upload "$WORK/scalio-firstboot.sh:/opt/scalio-image/scalio-firstboot.sh" \
@@ -65,7 +67,7 @@ virt-customize -q -a "$DISK" \
   --run-command 'systemctl enable scalio-firstboot.service scalio-account.service fail2ban.service' \
   --run-command 'ufw default deny incoming && ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && sed -i "s/^ENABLED=.*/ENABLED=yes/" /etc/ufw/ufw.conf' \
   --run-command 'sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"ch\"/" /etc/default/keyboard' \
-  --run-command 'apt-get clean && rm -rf /var/lib/apt/lists/* && cloud-init clean --logs && truncate -s 0 /etc/machine-id && rm -f /var/lib/dbus/machine-id /etc/ssh/ssh_host_*' \
+  --run-command 'apt-get clean && rm -rf /var/lib/apt/lists/* && cloud-init clean --logs && truncate -s 0 /etc/machine-id && rm -f /var/lib/dbus/machine-id /etc/ssh/ssh_host_* && ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf' \
   --hostname scalio \
   --timezone Europe/Zurich
 virt-sparsify -q --in-place "$DISK"

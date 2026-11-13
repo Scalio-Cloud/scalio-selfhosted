@@ -60,8 +60,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq qemu-utils qemu-system-x86 libguestfs-tools cloud-image-utils ovmf zip >/dev/null
           sudo chmod 0644 /boot/vmlinuz-*
-          # The libguestfs appliance copies the host's resolv.conf; the systemd stub 127.0.0.53 is not reachable there.
-          sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
       - name: Check the files
         run: |
           bash -n get.sh image/build-vm.sh image/boot-test.sh image/scalio-account.sh image/scalio-firstboot.sh
