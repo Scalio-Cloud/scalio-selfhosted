@@ -62,7 +62,7 @@ if [ "${SCALIO_SKIP_DOCKER:-}" != 1 ]; then
 fi
 
 say "Ordner ${ROOT} anlegen"
-install -d -m 0700 "$ROOT" "$ROOT/setup" "$ROOT/apps" "$ROOT/caddy" "$ROOT/caddy/sites" "$ROOT/caddy/data"
+install -d -m 0700 "$ROOT" "$ROOT/setup" "$ROOT/apps" "$ROOT/caddy" "$ROOT/caddy/sites" "$ROOT/caddy/data" "$ROOT/caddy/certs"
 # Der Installer selbst: https über die IP-Adressen dieses Servers mit Caddys eigener Zertifizierungsstelle. Ein
 # Browser schickt bei einer IP keinen Servernamen (SNI), deshalb default_sni. Port 80 leitet auf https um (das
 # Anmelde-Cookie gilt nur über https). Die Admin-API hört nur auf einem Socket im Caddy-Container (der Installer lädt
@@ -118,7 +118,7 @@ docker run -d --name scalio-setup --restart unless-stopped --network "$NETWORK" 
   "${LAB_ARGS[@]}" --security-opt no-new-privileges:true "$SETUP_IMAGE" >/dev/null
 docker run -d --name scalio-caddy --restart unless-stopped --network "$NETWORK" -p 80:80 -p 443:443 \
   -v "$ROOT/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$ROOT/caddy/sites:/etc/caddy/sites:ro" \
-  -v "$ROOT/caddy/data:/data" --security-opt no-new-privileges:true "$CADDY_IMAGE" >/dev/null
+  -v "$ROOT/caddy/certs:/etc/caddy/certs:ro" -v "$ROOT/caddy/data:/data" --security-opt no-new-privileges:true "$CADDY_IMAGE" >/dev/null
 
 CODE=""
 CODE_CMD="sudo docker exec scalio-setup python -m scalio_setup code"
