@@ -29,14 +29,14 @@
     "citadel": [
       {
         "images": {
-          "backend": "ghcr.io/scalio-cloud/scalio-citadel-dev-backend@sha256:1d2c9edaf9ac6a427205c926d7b9ecfb6675ba052b20924440a0aa0a1182cfc1",
-          "frontend": "ghcr.io/scalio-cloud/scalio-citadel-dev-frontend@sha256:f9275c43df78a10e569983933204c609842af90936cfea8bd87f4f373ed02f9a"
+          "backend": "ghcr.io/scalio-cloud/scalio-citadel-dev-backend@sha256:078e62ecfc255233cef0310da215c54164ca14b0d729d3bfb10d294296c1589e",
+          "frontend": "ghcr.io/scalio-cloud/scalio-citadel-dev-frontend@sha256:9746cf35d3be40575b36150939641f7bfcfc6e4cf51dbca46a21fcc11aebbdd0"
         },
         "manifest_sha256": "b444436df58235660c081a53f8c77a3d836622c2cd23523576bf5482b7a938a8",
         "notes": "",
-        "released": "2026-11-14T14:00:25Z",
+        "released": "2026-11-15T08:11:37Z",
         "setup": "0.1.0",
-        "version": "dev-5152824"
+        "version": "dev-c561ab4"
       }
     ],
     "folio": [
@@ -108,5 +108,5 @@
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-15T08:11:30Z"
+  "updated": "2026-11-15T08:11:37Z"
 }
