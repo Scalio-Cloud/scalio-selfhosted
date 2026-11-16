@@ -81,14 +81,14 @@
     "pulse": [
       {
         "images": {
-          "backend": "ghcr.io/scalio-cloud/scalio-pulse-dev-backend@sha256:3b5319272342aea06520cb1f7f0b0ed760dd8f39dd5d0eb150e8ad21c2ec7296",
-          "frontend": "ghcr.io/scalio-cloud/scalio-pulse-dev-frontend@sha256:ee299415c9dcd2f77fb0baad0d5ad6aa5ff236b003b8933638a8061be10f2de8"
+          "backend": "ghcr.io/scalio-cloud/scalio-pulse-dev-backend@sha256:7c4f35780aac27c9afc76af007e272526a467456acf3a3545274208a1bda3e7d",
+          "frontend": "ghcr.io/scalio-cloud/scalio-pulse-dev-frontend@sha256:cb75cef2e7afcb1e0365a349e41757af3c222b624566f076a71ad26b438dd2ea"
         },
         "manifest_sha256": "fd68dbb16172029a4240f6c26395ce77aec57eba00c21b70cf46461bf0901683",
         "notes": "",
-        "released": "2026-11-16T08:50:57Z",
+        "released": "2026-11-16T12:22:01Z",
         "setup": "0.1.0",
-        "version": "dev-2e218c2"
+        "version": "dev-b422921"
       }
     ],
     "rosetta": [
@@ -108,5 +108,5 @@
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-16T12:19:00Z"
+  "updated": "2026-11-16T12:22:01Z"
 }
