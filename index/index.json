@@ -12,9 +12,22 @@
         "setup": "0.1.0",
         "version": "0.3.3"
       }
+    ],
+    "rosetta": [
+      {
+        "images": {
+          "backend": "ghcr.io/scalio-cloud/selfhosted-scaliorosetta-backend@sha256:7d0b4e27296befc04d68e54e5ab0d0208dce19ebc9e6e730f262a67e729342de",
+          "frontend": "ghcr.io/scalio-cloud/selfhosted-scaliorosetta-frontend@sha256:7799c9acd9629da600a3396ce2c9ef71fb94232cda3915fdfa5ec783960b9143"
+        },
+        "manifest_sha256": "4713e47cf1a9ca4cb0a1f7317b8db17d845e55ff61f14543fbb20d9947d53b00",
+        "notes": "https://github.com/Scalio-Cloud/scalio-selfhosted/releases/tag/rosetta-0.3.3",
+        "released": "2026-11-16",
+        "setup": "0.1.0",
+        "version": "0.3.3"
+      }
     ]
   },
   "format": "scalio.selfhosted-index/v1",
   "key": "8a574227403a",
-  "updated": "2026-11-16T02:11:13Z"
+  "updated": "2026-11-16T02:11:34Z"
 }
