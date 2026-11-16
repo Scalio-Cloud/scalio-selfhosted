@@ -1,0 +1,37 @@
+apiVersion: scalio.app/v1
+app: beacon
+product: Scalio Beacon
+setup: 0.1.0
+memory_mb: 1024
+database: mongo
+public: frontend
+port: 80
+secrets:
+  - {name: JWT_SECRET, format: hex}
+  - {name: SETTINGS_ENC_KEY, format: hex}
+license_env: BEACON_LICENSE_KEY
+env:
+  MONGO_URL: "{{mongo_url}}"
+  DB_NAME: beacon
+  JWT_SECRET: "{{secret.JWT_SECRET}}"
+  APP_PUBLIC_URL: "{{public_url}}"
+  SETUP_CODE: "{{setup_code}}"
+  SCALIO_APP_LINKS: "{{app_links}}"
+  SETTINGS_ENC_KEY: "{{secret.SETTINGS_ENC_KEY}}"
+  FRONTEND_URL: "{{public_url}}"
+  ALLOW_REGISTRATION: "false"
+services:
+  backend:
+    image: backend
+    env: common
+    healthcheck: /api/health
+    expose: 8001
+  worker:
+    image: backend
+    command: [python, -m, worker]
+    env: common
+  frontend:
+    image: frontend
+    environment:
+      BACKEND_URL: http://backend:8001
+
