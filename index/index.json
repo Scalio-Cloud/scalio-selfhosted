@@ -55,6 +55,17 @@
     "pulse": [
       {
         "images": {
+          "backend": "ghcr.io/scalio-cloud/selfhosted-scaliopulse-backend@sha256:dc176e92c09c0bd79df6519e6e7eede9c05bf50e853d46b146e8a10ff822bcba",
+          "frontend": "ghcr.io/scalio-cloud/selfhosted-scaliopulse-frontend@sha256:ec96582c4d8516c93b349b631940153a4d52b75a464718aeae23841f61e90ad1"
+        },
+        "manifest_sha256": "fd68dbb16172029a4240f6c26395ce77aec57eba00c21b70cf46461bf0901683",
+        "notes": "https://github.com/Scalio-Cloud/scalio-selfhosted/releases/tag/pulse-0.3.4",
+        "released": "2026-11-16",
+        "setup": "0.1.0",
+        "version": "0.3.4"
+      },
+      {
+        "images": {
           "backend": "ghcr.io/scalio-cloud/selfhosted-scaliopulse-backend@sha256:f3a8618bf3c499589eb59babba6ed555dc2d47ae276041c54ba4bd0182a503e0",
           "frontend": "ghcr.io/scalio-cloud/selfhosted-scaliopulse-frontend@sha256:352be7a6e1d98f16fb20661c6175d61d53191c7409c569be1b4dc1b669943570"
         },
@@ -81,5 +92,5 @@
   },
   "format": "scalio.selfhosted-index/v1",
   "key": "8a574227403a",
-  "updated": "2026-11-16T02:13:06Z"
+  "updated": "2026-11-16T05:28:23Z"
 }
