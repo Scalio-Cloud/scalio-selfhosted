@@ -1,5 +1,18 @@
 {
   "apps": {
+    "atrium": [
+      {
+        "images": {
+          "backend": "ghcr.io/scalio-cloud/selfhosted-scalioatrium-backend@sha256:8d88bdb506b7263d964d3ebaacef444597dadaf67224e75d9235c9f405a1f146",
+          "frontend": "ghcr.io/scalio-cloud/selfhosted-scalioatrium-frontend@sha256:e7abba67c366439a3a1e49fc7cd509c81f1673030a6c70677b3bb28f74aa63f4"
+        },
+        "manifest_sha256": "d3dbde624c4af365ee44d42375e397fa1f62a0c488e88d5fc3b75bacc5812808",
+        "notes": "https://github.com/Scalio-Cloud/scalio-selfhosted/releases/tag/atrium-0.3.1",
+        "released": "2026-11-16",
+        "setup": "0.1.0",
+        "version": "0.3.1"
+      }
+    ],
     "beacon": [
       {
         "images": {
@@ -103,5 +116,5 @@
   },
   "format": "scalio.selfhosted-index/v1",
   "key": "8a574227403a",
-  "updated": "2026-11-16T05:28:30Z"
+  "updated": "2026-11-16T05:28:52Z"
 }
