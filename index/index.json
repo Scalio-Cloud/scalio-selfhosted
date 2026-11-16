@@ -42,6 +42,17 @@
     "foundry": [
       {
         "images": {
+          "backend": "ghcr.io/scalio-cloud/selfhosted-scaliofoundry-backend@sha256:c8bb3ce2c2669fe9ce6bc449ec94286968e6bd1204a513b29f939a93b6d626f1",
+          "frontend": "ghcr.io/scalio-cloud/selfhosted-scaliofoundry-frontend@sha256:f4bca7b451317659f8d871ca44f33ea157b8ea91718926d4d453b9b6b525fb62"
+        },
+        "manifest_sha256": "d62b4bf038286c348078c64b9f94d5a0118220cc84c088796b881305ffabff5c",
+        "notes": "https://github.com/Scalio-Cloud/scalio-selfhosted/releases/tag/foundry-0.3.4",
+        "released": "2026-11-16",
+        "setup": "0.1.0",
+        "version": "0.3.4"
+      },
+      {
+        "images": {
           "backend": "ghcr.io/scalio-cloud/selfhosted-scaliofoundry-backend@sha256:6f66f02dea8944353be0df262e70ac05de0ba9b17bf695827ea8907c95a58b88",
           "frontend": "ghcr.io/scalio-cloud/selfhosted-scaliofoundry-frontend@sha256:446c5e288e5fbde03fd22aaa291cbdcbd30337fd0f9b374fd7b53aad05342422"
         },
@@ -92,5 +103,5 @@
   },
   "format": "scalio.selfhosted-index/v1",
   "key": "8a574227403a",
-  "updated": "2026-11-16T05:28:23Z"
+  "updated": "2026-11-16T05:28:30Z"
 }
