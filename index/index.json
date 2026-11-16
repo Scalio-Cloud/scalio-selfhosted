@@ -1,0 +1,20 @@
+{
+  "apps": {
+    "citadel": [
+      {
+        "images": {
+          "backend": "ghcr.io/scalio-cloud/selfhosted-scaliocitadel-backend@sha256:070aa876ad5e0de9e1406f18ee2b6a5a15c79b3579b051fea6a557b60fae403c",
+          "frontend": "ghcr.io/scalio-cloud/selfhosted-scaliocitadel-frontend@sha256:d700605df3c1e8d0d61b915ad776fb028e139106a261c9e6db26c289a9bc951e"
+        },
+        "manifest_sha256": "b444436df58235660c081a53f8c77a3d836622c2cd23523576bf5482b7a938a8",
+        "notes": "https://github.com/Scalio-Cloud/scalio-selfhosted/releases/tag/citadel-0.3.3",
+        "released": "2026-11-16",
+        "setup": "0.1.0",
+        "version": "0.3.3"
+      }
+    ]
+  },
+  "format": "scalio.selfhosted-index/v1",
+  "key": "8a574227403a",
+  "updated": "2026-11-16T02:11:13Z"
+}
