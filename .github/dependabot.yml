@@ -1,0 +1,58 @@
+# Dependabot nach scalio-docs ADR 0131 (Richtlinie upd/U1-U8, concepts/update-agent.md). Gilt gleich für alle Repos.
+# - Sicherheitsupdates: sofort, sobald ein Advisory eine Abhängigkeit trifft (ein Sammel-PR pro Ökosystem, Gruppe
+#   `security`, ohne Wartezeit). Was Dependabot nicht selbst lösen kann (Major nötig, gesperrt), meldet der
+#   Update-Agent aus den Dependabot-Alerts.
+# - Versionsupdates: einmal im Monat (am 1., 06:00 Zürich), nur Patch und Minor, ein Sammel-PR pro Ökosystem
+#   (Gruppe `updates`), höchstens 2 offene pro Eintrag, Release mindestens 7 Tage alt (cooldown).
+# - Majors nie automatisch: der Update-Agent legt sie als Backlog-Punkt «Major prüfen» an, Markus entscheidet.
+# - Plattform-Versionen gesperrt (Python 3.13 ADR 0130, Node LTS, .NET 10, PowerShell SDK 7.6): Wechsel nur per ADR.
+# - Eigene Pakete (scalio-*, @scalio-cloud/*) hebt der Paket-Thread nach der Merge-Reihenfolge (Grundregel 3).
+# Der Update-Agent macht die PRs grün (Grundregel 1a); gemergt wird im Cockpit (Tab PRs), nie automatisch.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directories: ["/"]
+    schedule:
+      interval: monthly
+      time: "06:00"
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: "*"   # Majors nie automatisch (ADR 0131 upd/U2), Backlog «Major prüfen»
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "scalio-*"   # eigene Pakete hebt der Paket-Thread (ADR 0131 upd/U5)
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+      updates:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: github-actions
+    directories: ["/"]
+    schedule:
+      interval: monthly
+      time: "06:00"
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: "*"   # Majors nie automatisch (ADR 0131 upd/U2), Backlog «Major prüfen»
+        update-types: ["version-update:semver-major"]
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+      updates:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "deps"
