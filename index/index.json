@@ -109,6 +109,19 @@
         "version": "0.3.3"
       }
     ],
+    "nexus": [
+      {
+        "images": {
+          "backend": "ghcr.io/scalio-cloud/selfhosted-scalionexus-backend@sha256:435ec9e341d9f81152c69095a9ecc826b3ab9adc7ba51c43a9091ac0b253b7ba",
+          "frontend": "ghcr.io/scalio-cloud/selfhosted-scalionexus-frontend@sha256:57a699c2d670017a31cf9e15fc6a5fb75e6e1de2d6cc213814634a91c72538d7"
+        },
+        "manifest_sha256": "61770a07b23e9b7539f851ad83a29fb3a77f41cedb6db800f29de444d95f4a32",
+        "notes": "https://github.com/Scalio-Cloud/scalio-selfhosted/releases/tag/nexus-1.4.4",
+        "released": "2026-11-16",
+        "setup": "0.1.0",
+        "version": "1.4.4"
+      }
+    ],
     "pulse": [
       {
         "images": {
@@ -149,5 +162,5 @@
   },
   "format": "scalio.selfhosted-index/v1",
   "key": "8a574227403a",
-  "updated": "2026-11-16T05:31:20Z"
+  "updated": "2026-11-16T05:31:53Z"
 }
