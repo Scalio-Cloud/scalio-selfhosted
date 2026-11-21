@@ -68,14 +68,14 @@
     "nexus": [
       {
         "images": {
-          "backend": "ghcr.io/scalio-cloud/scalio-nexus-dev-backend@sha256:1a2607ba7f88f6a997f45734ddc8bd07eb7f16c081db2affa2b7ce1cf0509dac",
-          "frontend": "ghcr.io/scalio-cloud/scalio-nexus-dev-frontend@sha256:254ee155093bfec34dd4b9d604b19e32ae4e0c9fd8e1c1e9e508a18fac2f020c"
+          "backend": "ghcr.io/scalio-cloud/scalio-nexus-dev-backend@sha256:a988aeca1d226d9de0656dabcc550bbfaaacee591e28dcee3fbfc6e0f0f9a897",
+          "frontend": "ghcr.io/scalio-cloud/scalio-nexus-dev-frontend@sha256:3960b0e9ea0833fd4d5309f8405666a1d0bb07a4bb2058a76471f555f3530026"
         },
         "manifest_sha256": "61770a07b23e9b7539f851ad83a29fb3a77f41cedb6db800f29de444d95f4a32",
         "notes": "",
-        "released": "2026-11-20T06:45:09Z",
+        "released": "2026-11-21T05:10:47Z",
         "setup": "0.1.0",
-        "version": "dev-e49ce02"
+        "version": "dev-1dfef62"
       }
     ],
     "pulse": [
@@ -108,5 +108,5 @@
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-21T05:10:08Z"
+  "updated": "2026-11-21T05:10:47Z"
 }
