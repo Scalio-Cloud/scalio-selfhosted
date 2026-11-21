@@ -81,12 +81,12 @@
     "pulse": [
       {
         "images": {
-          "backend": "ghcr.io/scalio-cloud/scalio-pulse-dev-backend@sha256:e50b88dbb8d43a533fad02b4c1b22780e594fe69234653a5dd27f496f9b796bb",
-          "frontend": "ghcr.io/scalio-cloud/scalio-pulse-dev-frontend@sha256:257716e9acffd7ff99b72ea8db83361d3b437eb35c451500b592be970956c2aa"
+          "backend": "ghcr.io/scalio-cloud/scalio-pulse-dev-backend@sha256:423032e6a6ae232381cd4e79330030780bdf5a4e8a234f406ccd80525c559332",
+          "frontend": "ghcr.io/scalio-cloud/scalio-pulse-dev-frontend@sha256:ddd4d2e125bf8777dcf88abcd867ea48c055df1c203eea7381f6b2822c183695"
         },
         "manifest_sha256": "fd68dbb16172029a4240f6c26395ce77aec57eba00c21b70cf46461bf0901683",
         "notes": "",
-        "released": "2026-11-21T05:10:08Z",
+        "released": "2026-11-21T05:24:00Z",
         "setup": "0.1.0",
         "version": "dev-ab44d21"
       }
@@ -108,5 +108,5 @@
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-21T05:19:22Z"
+  "updated": "2026-11-21T05:24:00Z"
 }
