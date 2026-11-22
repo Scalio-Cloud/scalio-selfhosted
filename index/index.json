@@ -94,19 +94,19 @@
     "rosetta": [
       {
         "images": {
-          "backend": "ghcr.io/scalio-cloud/scalio-rosetta-dev-backend@sha256:445be6ba278d2d6c8c7cdaa39fa0d51110bcb97498f613abaae59b85512d189d",
-          "frontend": "ghcr.io/scalio-cloud/scalio-rosetta-dev-frontend@sha256:a6e5e9931de9c3837ded01517e86b1014cc6da8dce003851461eeb0f4966a439"
+          "backend": "ghcr.io/scalio-cloud/scalio-rosetta-dev-backend@sha256:4fd0a27e78236e3700adcf50d649ceef7349f9fe97d1303110204ccd68bcce89",
+          "frontend": "ghcr.io/scalio-cloud/scalio-rosetta-dev-frontend@sha256:8221b44a6974506ebd1259fe26b7a0d58ccb44c21818c863a9358a4299345549"
         },
         "manifest_sha256": "4713e47cf1a9ca4cb0a1f7317b8db17d845e55ff61f14543fbb20d9947d53b00",
         "notes": "",
-        "released": "2026-11-21T06:34:24Z",
+        "released": "2026-11-22T06:01:34Z",
         "setup": "0.1.0",
-        "version": "dev-110b23c"
+        "version": "dev-1bb2cfa"
       }
     ]
   },
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-22T05:59:36Z"
+  "updated": "2026-11-22T06:01:34Z"
 }
