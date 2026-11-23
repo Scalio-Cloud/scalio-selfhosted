@@ -12,8 +12,9 @@ def run_check(tmp_path, cpuinfo):
     f.write_text(cpuinfo, encoding="utf-8")
     func = re.search(r"^check_avx\(\) \{.*?^\}\n", SCRIPT, re.S | re.M).group(0)
     prog = 'say() { printf "%s\\n" "$*"; }\nuname() { echo x86_64; }\n' + func + "check_avx\n"
-    return subprocess.run(["bash", "-c", prog], env={"SCALIO_CPUINFO": str(f), "PATH": "/usr/bin:/bin"},
-                          capture_output=True, text=True, check=True).stdout
+    env = {"SCALIO_CPUINFO": str(f), "PATH": "/usr/bin:/bin"}
+    cmd = ["/bin/bash", "-c", prog]
+    return subprocess.run(cmd, env=env, capture_output=True, text=True, check=True).stdout  # noqa: S603
 
 
 def test_no_avx_prints_hint_with_remedies(tmp_path):
