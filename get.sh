@@ -38,6 +38,20 @@ case "${ID}:${VERSION_ID}" in
   *) fail "${PRETTY_NAME:-unbekanntes System} wird nicht unterstützt (Ubuntu 24.04/26.04 oder Debian 12/13)" ;;
 esac
 
+# MongoDB 5+ (z. B. Scalio Citadel) braucht eine CPU mit AVX. Fehlt das Flag (Proxmox-Standard kvm64/x86-64-v2-AES, alte CPUs),
+# startet MongoDB nur mit «Illegal instruction». Nur ein Hinweis: Apps ohne MongoDB laufen weiter, der Installer lehnt die anderen ab.
+# SCALIO_CPUINFO (nur für Tests) ersetzt /proc/cpuinfo.
+check_avx() {
+  [ "$(uname -m)" = x86_64 ] || return 0
+  local info="${SCALIO_CPUINFO:-/proc/cpuinfo}"
+  [ -r "$info" ] || return 0
+  grep -qE '^flags[[:space:]]*:.*[[:space:]]avx([[:space:]]|$)' "$info" && return 0
+  say "Hinweis: Diese CPU meldet kein AVX. MongoDB 5+ (z. B. Scalio Citadel) startet darauf nicht (\"Illegal instruction\")."
+  echo "  Abhilfe: Proxmox: Hardware > Processors > Type \"host\". Hyper-V: Prozessor-Kompatibilitätsmodus ausschalten."
+  echo "           VMware: EVC-Stufe mit AVX wählen. Der Installer lässt Apps mit MongoDB ohne AVX nicht zu."
+}
+check_avx
+
 MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
 [ "$MEM_MB" -ge 3500 ] || say "Hinweis: nur ${MEM_MB} MB RAM. Für eine App sind 4 GB empfohlen."
 
