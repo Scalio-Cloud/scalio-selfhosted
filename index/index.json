@@ -3,14 +3,14 @@
     "atrium": [
       {
         "images": {
-          "backend": "ghcr.io/scalio-cloud/scalio-atrium-dev-backend@sha256:aea5e3dbc3a7ec836c24720fbb9229c4a43fb67e9f58bcfc227049d4862383a4",
-          "frontend": "ghcr.io/scalio-cloud/scalio-atrium-dev-frontend@sha256:834ec2e5ce7367edae34680df835d980ed43ee766cb845b646efbc9092922250"
+          "backend": "ghcr.io/scalio-cloud/scalio-atrium-dev-backend@sha256:79155571547f93bed2573f9d1f174ef0148be9540407e9a0def6564f23e3f844",
+          "frontend": "ghcr.io/scalio-cloud/scalio-atrium-dev-frontend@sha256:01ab92304d9f42be0adbc96e9ffdd580f4ee4e57573df6d6f614891d768a7643"
         },
         "manifest_sha256": "d3dbde624c4af365ee44d42375e397fa1f62a0c488e88d5fc3b75bacc5812808",
         "notes": "",
-        "released": "2026-11-24T12:31:59Z",
+        "released": "2026-11-24T14:00:38Z",
         "setup": "0.1.0",
-        "version": "dev-9fa9c60"
+        "version": "dev-3ed0da9"
       }
     ],
     "beacon": [
@@ -108,5 +108,5 @@
   "channel": "dev",
   "format": "scalio.selfhosted-index/v1",
   "key": "a877c6eee64e",
-  "updated": "2026-11-24T13:59:54Z"
+  "updated": "2026-11-24T14:00:38Z"
 }
